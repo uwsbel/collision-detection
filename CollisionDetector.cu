@@ -280,7 +280,7 @@ int CollisionDetector::detectPossibleCollisions() {
 	cudaFuncSetCacheConfig(device_Store_AABB_AABB_Intersection, cudaFuncCachePreferL1);
 	COPY_TO_CONST_MEM(numAABB);
 #endif
-	potential_contacts.clear();
+	potentialCollisions.clear();
 	// END STEP 1
 
 	// STEP 2: determine the bounds on the total space and subdivide based on the bins per axis
@@ -354,7 +354,7 @@ int CollisionDetector::detectPossibleCollisions() {
 	host_Count_AABB_AABB_Intersection(aabb_data.data(), bin_number.data(), body_number.data(), bin_start_index.data(), Num_ContactD.data());
 #endif
 	Thrust_Inclusive_Scan_Sum(Num_ContactD, number_of_contacts_possible);
-	potential_contacts.resize(number_of_contacts_possible);
+	potentialCollisions.resize(number_of_contacts_possible);
 	cout << "Number of possible collisions: " << number_of_contacts_possible << endl;
 	// END STEP 5
 
@@ -366,16 +366,18 @@ int CollisionDetector::detectPossibleCollisions() {
 			CASTU1(body_number),
 			CASTU1(bin_start_index),
 			CASTU1(Num_ContactD),
-			CASTLL(potential_contacts));
+			CASTLL(potentialCollisions));
 #else
 	host_Store_AABB_AABB_Intersection(aabb_data.data(),
-			bin_number.data(), body_number.data(), bin_start_index.data(),
+			bin_number.data(),
+			body_number.data(),
+			bin_start_index.data(),
 			Num_ContactD.data(),
-			potential_contacts.data());
+			potentialCollisions.data());
 #endif
-	thrust::sort(potential_contacts.begin(), potential_contacts.end());
-	number_of_contacts_possible = thrust::unique(potential_contacts.begin(),
-			potential_contacts.end()) - potential_contacts.begin();
+	thrust::sort(potentialCollisions.begin(), potentialCollisions.end());
+	number_of_contacts_possible = thrust::unique(potentialCollisions.begin(),
+			potentialCollisions.end()) - potentialCollisions.begin();
 	cout << "Number of possible collisions: " << number_of_contacts_possible << endl;
 	// END STEP 6
 

@@ -454,11 +454,11 @@ private:
             const uint * body_number,
             const uint * bin_start_index,
             const uint* Num_ContactD,
-            long long* potential_contacts);
+            long long* potentialCollisions);
 
 public:
 	// variables
-    custom_vector<long long> potential_contacts;
+    custom_vector<long long> potentialCollisions;
 
 	// functions
 	CollisionDetector(custom_vector<realV> aabb_data);		// constructor
