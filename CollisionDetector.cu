@@ -18,6 +18,11 @@ CollisionDetector::CollisionDetector(custom_vector<realV> aabb_data) {
 	bins_per_axis = F3(100, 100, 100); // TODO: Should be able to tune this, it's nice to have as a parameter though!
 	// TODO: As the collision detection is progressing, we should free up vectors that are no longer being used! For example, Bin_Intersections is only used in steps 4&5
 }
+
+int CollisionDetector::updateBoundingBoxes(custom_vector<realV> aabb_data) {
+	this->aabb_data = aabb_data;
+	numAABB = aabb_data.size()/2;
+}
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -145,7 +150,6 @@ inline void __host__ __device__ function_Count_AABB_AABB_Intersection(
         const uint * bin_number,
         const uint * body_number,
         const uint * bin_start_index,
-        //const bool* active, // UNNECESSARY, if user did not want the body to collide, they wouldn't have passed the bounding box in
         uint* Num_ContactD) {
     uint end = bin_start_index[index], count = 0, i = (!index) ? 0 : bin_start_index[index - 1];
     uint tempa, tempb;
@@ -170,7 +174,6 @@ __global__ void device_Count_AABB_AABB_Intersection(
         const uint * bin_number,
         const uint * body_number,
         const uint * bin_start_index,
-        //const bool* active, // UNNECESSARY, if user did not want the body to collide, they wouldn't have passed the bounding box in
         uint* Num_ContactD) {
     INIT_CHECK_THREAD_BOUNDED(INDEX1D, last_active_bin_const);
     function_Count_AABB_AABB_Intersection(index, aabb_data, numAABB_const, bin_number, body_number, bin_start_index, Num_ContactD);
@@ -182,7 +185,6 @@ void CollisionDetector::host_Count_AABB_AABB_Intersection(
         const uint * bin_number,
         const uint * body_number,
         const uint * bin_start_index,
-        //const bool* active, // UNNECESSARY, if user did not want the body to collide, they wouldn't have passed the bounding box in
         uint* Num_ContactD) {
 #pragma omp parallel for schedule(guided)
     for (int i = 0; i < last_active_bin; i++) {
@@ -201,7 +203,6 @@ inline void __host__ __device__ function_Store_AABB_AABB_Intersection(
         const uint * body_number,
         const uint * bin_start_index,
         const uint* Num_ContactD,
-        //const bool* active, // UNNECESSARY, if user did not want the body to collide, they wouldn't have passed the bounding box in
         long long* potential_contacts) {
     uint end = bin_start_index[index], count = 0, i = (!index) ? 0 : bin_start_index[index - 1], Bin = bin_number[index];
     uint offset = (!index) ? 0 : Num_ContactD[index - 1];
@@ -223,7 +224,7 @@ inline void __host__ __device__ function_Store_AABB_AABB_Intersection(
             B.max = aabb_data[tempb + number_of_particles];
 
             bool inContact = (A.min.x <= B.max.x && B.min.x <= A.max.x) && (A.min.y <= B.max.y && B.min.y <= A.max.y) && (A.min.z <= B.max.z && B.min.z <= A.max.z);
-            if (inContact == true) {// && tempa != tempb && (active[body_number[i]] || active[body_number[k]])) {
+            if (inContact == true) {
 
                 int a = tempa;
                 int b = tempb;
@@ -245,12 +246,11 @@ __global__ void device_Store_AABB_AABB_Intersection(
         const uint * body_number,
         const uint * bin_start_index,
         const uint* Num_ContactD,
-        //const bool* active, // UNNECESSARY, if user did not want the body to collide, they wouldn't have passed the bounding box in
         long long* potential_contacts) {
     INIT_CHECK_THREAD_BOUNDED(INDEX1D, last_active_bin_const);
 
     function_Store_AABB_AABB_Intersection(index, aabb_data, numAABB_const, bin_number, body_number, bin_start_index, Num_ContactD, potential_contacts);
-    //--------------------------------------------------------------------------
+//--------------------------------------------------------------------------
 }
 void CollisionDetector::host_Store_AABB_AABB_Intersection(
         const float3* aabb_data,
@@ -258,7 +258,6 @@ void CollisionDetector::host_Store_AABB_AABB_Intersection(
         const uint * body_number,
         const uint * bin_start_index,
         const uint* Num_ContactD,
-        //const bool* active, // UNNECESSARY, if user did not want the body to collide, they wouldn't have passed the bounding box in
         long long* potential_contacts) {
 #pragma omp parallel for schedule(guided)
     for (int index = 0; index < last_active_bin; index++) {
@@ -275,28 +274,13 @@ int CollisionDetector::detectPossibleCollisions() {
 	// STEP 1: Initialization TODO: this could be put in the constructor
 #ifdef SIM_ENABLE_GPU_MODE
 	// set the default cache configuration on the device to prefer a larger L1 cache and smaller shared memory
-	//cudaFuncSetCacheConfig(device_Generate_AABB, cudaFuncCachePreferL1); //UNNECESARRY, user does this before calling detectPossibleCollisions()
 	cudaFuncSetCacheConfig(device_Count_AABB_BIN_Intersection, cudaFuncCachePreferL1);
 	cudaFuncSetCacheConfig(device_Store_AABB_BIN_Intersection, cudaFuncCachePreferL1);
 	cudaFuncSetCacheConfig(device_Count_AABB_AABB_Intersection, cudaFuncCachePreferL1);
 	cudaFuncSetCacheConfig(device_Store_AABB_AABB_Intersection, cudaFuncCachePreferL1);
-	//cudaFuncSetCacheConfig(device_Store_Contact, cudaFuncCachePreferL1); //UNNECESSARY, user will process their own contacts
-#endif
-
-	//number_of_particles = particle_list->num_particles; //UNNECESSARY, the collision detection doesn't care about the particles, only the AABBs
-	//aabb_data.resize(numAABB * 2); //UNNECESSARY, user is responsible for putting the correct number of entries in aabb_data
-	potential_contacts.clear();
-	//contact_list->clear(); //UNNECESSARY, the user will handle the contacts
-
-	//##############################################################################################
-#ifdef SIM_ENABLE_GPU_MODE
 	COPY_TO_CONST_MEM(numAABB);
-	// UNNECESSARY, the user will handle generating the AABBs (at some point the user should be able to pass the min and max -> confusing the way the list is currently organized)
-	//device_Generate_AABB __KERNEL__(BLOCKS(number_of_particles),THREADS)( CASTF3(particle_list->pos_d), CASTF1(particle_list->radius_d),CASTF3(aabb_data));
-//#else
-	//host_Generate_AABB(particle_list->pos.data(), particle_list->radius.data(),aabb_data.data()); // UNNECESSARY, the user should have already defined aabb_data
 #endif
-	//##############################################################################################
+	potential_contacts.clear();
 	// END STEP 1
 
 	// STEP 2: determine the bounds on the total space and subdivide based on the bins per axis
@@ -306,18 +290,17 @@ int CollisionDetector::detectPossibleCollisions() {
 	bbox result = thrust::transform_reduce(aabb_data.begin(), aabb_data.end(), unary_op, init, binary_op);
 	min_bounding_point = result.first;
 	max_bounding_point = result.second;
-	global_origin = fabs(min_bounding_point);
+	global_origin = fabs(min_bounding_point); // TODO: Look closely at this to see if correct
 	bin_size_vec = (fabs(max_bounding_point + fabs(min_bounding_point)));
 	bin_size_vec = bin_size_vec/bins_per_axis; //CHANGED: this was supposed to be reversed
 	thrust::transform(aabb_data.begin(), aabb_data.end(), thrust::constant_iterator<realV>(global_origin), aabb_data.begin(), thrust::minus<realV>()); //CHANGED: Should be a minus
 	cout << "Global Origin: (" << global_origin.x << ", " << global_origin.y << ", " << global_origin.z << ")"<< endl;
 	cout << "Maximum bounding point: (" << max_bounding_point.x << ", " << max_bounding_point.y << ", " << max_bounding_point.z << ")"<< endl;
 	cout << "Bin size vector: (" << bin_size_vec.x << ", " << bin_size_vec.y << ", " << bin_size_vec.z << ")"<< endl;
-	//##############################################################################################
 	// END STEP 2
 
 	// STEP 3: Count the number AABB's that lie in each bin, allocate space for each AABB
-	Bins_Intersected.resize(numAABB);//bins_per_axis.x*bins_per_axis.y*bins_per_axis.z);  // TODO: how do you know how large to make this vector?
+	Bins_Intersected.resize(numAABB); // TODO: how do you know how large to make this vector?
 	// TODO: I think there is something wrong with the hash function...
 #ifdef SIM_ENABLE_GPU_MODE
 	COPY_TO_CONST_MEM(bin_size_vec);
@@ -366,7 +349,6 @@ int CollisionDetector::detectPossibleCollisions() {
 			CASTU1(bin_number),
 			CASTU1(body_number),
 			CASTU1(bin_start_index),
-			//CASTB1(particle_list->active_d), // UNNECESSARY, if user did not want the body to collide, they wouldn't have passed the bounding box in
 			CASTU1(Num_ContactD));
 #else
 	host_Count_AABB_AABB_Intersection(aabb_data.data(), bin_number.data(), body_number.data(), bin_start_index.data(), Num_ContactD.data());
@@ -384,13 +366,11 @@ int CollisionDetector::detectPossibleCollisions() {
 			CASTU1(body_number),
 			CASTU1(bin_start_index),
 			CASTU1(Num_ContactD),
-			//CASTB1(particle_list->active_d), // UNNECESSARY, if user did not want the body to collide, they wouldn't have passed the bounding box in
 			CASTLL(potential_contacts));
 #else
 	host_Store_AABB_AABB_Intersection(aabb_data.data(),
 			bin_number.data(), body_number.data(), bin_start_index.data(),
 			Num_ContactD.data(),
-			//particle_list->active.data(), // UNNECESSARY, if user did not want the body to collide, they wouldn't have passed the bounding box in
 			potential_contacts.data());
 #endif
 	thrust::sort(potential_contacts.begin(), potential_contacts.end());
@@ -399,46 +379,8 @@ int CollisionDetector::detectPossibleCollisions() {
 	cout << "Number of possible collisions: " << number_of_contacts_possible << endl;
 	// END STEP 6
 
-//	// STEP 7: Process contacts (UNNECESSARY, user will process their own contacts)
-//	//##############################################################################################
-//	contact_list->resize(number_of_contacts_possible);
-//	Num_ContactD.resize(number_of_contacts_possible);
-//
-//	Thrust_Fill(Num_ContactD, 1);
-//#ifdef SIM_ENABLE_GPU_MODE
-//	COPY_TO_CONST_MEM(number_of_contacts_possible);
-//	device_Store_Contact __KERNEL__(BLOCKS(number_of_contacts_possible), THREADS)(
-//			CASTLL(potential_contacts),
-//			CASTF3(particle_list->pos_d),
-//			CASTF1(particle_list->radius_d),
-//			CASTU1(contact_list->ida),
-//			CASTU1(contact_list->idb),
-//			CASTF3(contact_list->N),
-//			CASTF1(contact_list->depth),
-//			CASTF1(contact_list->rest_len),
-//			CASTU1(Num_ContactD));
-//#else
-//	host_Store_Contact(potential_contacts.data(), particle_list->pos.data(),
-//			particle_list->radius.data(),
-//
-//			contact_list->ida.data(), contact_list->idb.data(),
-//			contact_list->N.data(), contact_list->depth.data(),
-//			contact_list->rest_len.data(), Num_ContactD.data());
-//#endif
-//	thrust::sort_by_key(Num_ContactD.begin(), Num_ContactD.end(),
-//			thrust::make_zip_iterator(
-//					thrust::make_tuple(contact_list->ida.begin(),
-//							contact_list->idb.begin(), contact_list->N.begin(),
-//							contact_list->depth.begin(),
-//							contact_list->rest_len.begin())));
-//
-//	number_of_contacts = Thrust_Count(Num_ContactD,0);
-//	contact_list->resize(number_of_contacts);
-//	contact_list->num_contacts = number_of_contacts;
-//	// END STEP 7
-//	//##############################################################################################
-
 	double endTime = omp_get_wtime();
 	printf("Time to detect: %lf seconds\n", (endTime - startTime));
 	return 0;
 }
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

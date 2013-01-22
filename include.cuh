@@ -423,12 +423,9 @@ private:
     realV global_origin;
     realV bin_size_vec;
     realV bins_per_axis;
-
-    //uint number_of_particles; // UNNECESSARY, should be number of AABBs
     uint numAABB;
     uint last_active_bin, number_of_bin_intersections, number_of_contacts_possible;//, number_of_contacts;
     uint val;
-
     custom_vector<realV> aabb_data;
     custom_vector<uint> Bins_Intersected;
     custom_vector<uint> bin_number;
@@ -437,7 +434,6 @@ private:
     custom_vector<uint> Num_ContactD;
 
 	// functions
-    //void host_Generate_AABB(const realV* pos, const real* radius, realV* aabb_data); //UNNECESSARY, user passes aabb_data to collision manager
     void host_Count_AABB_BIN_Intersection(
             const realV* aabb_data,
             uint* Bins_Intersected);
@@ -451,7 +447,6 @@ private:
             const uint * bin_number,
             const uint * body_number,
             const uint * bin_start_index,
-            //const bool* active, // UNNECESSARY, if user did not want the body to collide, they wouldn't have passed the bounding box in
             uint* Num_ContactD);
     void host_Store_AABB_AABB_Intersection(
             const float3* aabb_data,
@@ -459,18 +454,7 @@ private:
             const uint * body_number,
             const uint * bin_start_index,
             const uint* Num_ContactD,
-            //const bool* active, // UNNECESSARY, if user did not want the body to collide, they wouldn't have passed the bounding box in
             long long* potential_contacts);
-//    void host_Store_Contact( //(UNNECESSARY, user will process their own contacts)
-//            const long long * potential_contacts,
-//            const float3* pos,
-//            const float* radius,
-//            uint* id_a,
-//            uint* id_b,
-//            float3* Norm,
-//            float * c_dist,
-//            float* rest_len,
-//            uint* counter);
 
 public:
 	// variables
@@ -479,6 +463,7 @@ public:
 	// functions
 	CollisionDetector(custom_vector<realV> aabb_data);		// constructor
 	int detectPossibleCollisions();
+	int updateBoundingBoxes(custom_vector<realV> aabb_data);
 };
 
 #endif
