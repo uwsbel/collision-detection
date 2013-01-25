@@ -49,7 +49,7 @@ find_package("OpenGL")
 
 # Example CUDA program
 enable_cuda_support()
-cuda_add_library(sscd SHARED include.cuh CollisionDetector.cu)
+cuda_add_library(sscd SHARED CollisionDetector.cu sscd.h)
 target_link_libraries(sscd 
 	${GLUT_LIBRARIES}
 	${FREEGLUT_LIB}

@@ -1,30 +1,65 @@
-#include "include.cuh"
+#include "sscd.h"
 
 __constant__ uint numAABB_const;
 __constant__ realV bin_size_vec_const;
 __constant__ uint last_active_bin_const;
 __constant__ uint number_of_contacts_possible_const;
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+CollisionDetector::CollisionDetector() {
+	debugMode = false;
+	number_of_contacts_possible = 0;
+	val = 0;
+	last_active_bin = 0;
+	number_of_bin_intersections = 0;
+	numAABB = 0;
+	bins_per_axis = F3(50, 20, 50);
+	// TODO: Should make aabb_data organization less confusing, compiler should switch depending on if the user passes a host/device vector
+	// TODO: Should be able to tune bins_per_axis, it's nice to have as a parameter though!
+	// TODO: As the collision detection is progressing, we should free up vectors that are no longer being used! For example, Bin_Intersections is only used in steps 4&5
+	// TODO: Make sure that aabb_data isn't being duplicated for this code (should be a reference to user's code to conserve space)
+	// TODO: Fix debug mode to work with compiler settings, add more debugging features (a drawing function would be nice!)
+}
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 // Constructor, must pass the aabb_data (puts user in control)
 CollisionDetector::CollisionDetector(custom_vector<realV> aabb_data) {
+	debugMode = false;
 	number_of_contacts_possible = 0;
 	val = 0;
 	last_active_bin = 0;
 	number_of_bin_intersections = 0;
 	this->aabb_data = aabb_data;
-
-	numAABB = aabb_data.size()/2; // TODO: Should make aabb_data organization less confusing, compiler should switch depending on if the user passes a host/device vector
-	bins_per_axis = F3(100, 100, 100); // TODO: Should be able to tune this, it's nice to have as a parameter though!
-	// TODO: As the collision detection is progressing, we should free up vectors that are no longer being used! For example, Bin_Intersections is only used in steps 4&5
+	numAABB = aabb_data.size()/2;
+	bins_per_axis = F3(50, 20, 50);
 }
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 int CollisionDetector::updateBoundingBoxes(custom_vector<realV> aabb_data) {
 	this->aabb_data = aabb_data;
 	numAABB = aabb_data.size()/2;
 }
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+int CollisionDetector::activateDebugMode()
+{
+	debugMode = true;
+	return 0;
+}
+int CollisionDetector::deactivateDebugMode()
+{
+	debugMode = false;
+	return 0;
+}
+int CollisionDetector::setBinsPerAxis(float3 binsPerAxis)
+{
+	bins_per_axis = binsPerAxis;
+	return 0;
+}
+float3 CollisionDetector::getBinsPerAxis()
+{
+	return bins_per_axis;
+}
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 template<class T>
 inline int3 __host__ __device__ HashMax( //CHANGED: For maximum point, need to check if point lies on edge of bin (TODO: Hmm, fmod still doesn't work completely)
@@ -294,9 +329,9 @@ int CollisionDetector::detectPossibleCollisions() {
 	bin_size_vec = (fabs(max_bounding_point + fabs(min_bounding_point)));
 	bin_size_vec = bin_size_vec/bins_per_axis; //CHANGED: this was supposed to be reversed
 	thrust::transform(aabb_data.begin(), aabb_data.end(), thrust::constant_iterator<realV>(global_origin), aabb_data.begin(), thrust::minus<realV>()); //CHANGED: Should be a minus
-	cout << "Global Origin: (" << global_origin.x << ", " << global_origin.y << ", " << global_origin.z << ")"<< endl;
-	cout << "Maximum bounding point: (" << max_bounding_point.x << ", " << max_bounding_point.y << ", " << max_bounding_point.z << ")"<< endl;
-	cout << "Bin size vector: (" << bin_size_vec.x << ", " << bin_size_vec.y << ", " << bin_size_vec.z << ")"<< endl;
+	if(debugMode) cout << "Global Origin: (" << global_origin.x << ", " << global_origin.y << ", " << global_origin.z << ")"<< endl;
+	if(debugMode) cout << "Maximum bounding point: (" << max_bounding_point.x << ", " << max_bounding_point.y << ", " << max_bounding_point.z << ")"<< endl;
+	if(debugMode) cout << "Bin size vector: (" << bin_size_vec.x << ", " << bin_size_vec.y << ", " << bin_size_vec.z << ")"<< endl;
 	// END STEP 2
 
 	// STEP 3: Count the number AABB's that lie in each bin, allocate space for each AABB
@@ -309,7 +344,7 @@ int CollisionDetector::detectPossibleCollisions() {
 	host_Count_AABB_BIN_Intersection(aabb_data.data(), Bins_Intersected.data());
 #endif
 	Thrust_Inclusive_Scan_Sum(Bins_Intersected, number_of_bin_intersections);
-	cout << "Number of bin intersections: " << number_of_bin_intersections << endl;
+	if(debugMode) cout << "Number of bin intersections: " << number_of_bin_intersections << endl;
 	bin_number.resize(number_of_bin_intersections);
 	body_number.resize(number_of_bin_intersections);
 	bin_start_index.resize(number_of_bin_intersections);
@@ -325,18 +360,18 @@ int CollisionDetector::detectPossibleCollisions() {
 	Thrust_Sort_By_Key(bin_number, body_number);
 	Thrust_Reduce_By_KeyA(last_active_bin, bin_number, bin_start_index);
 
-		//QUESTION: I have no idea what is going on here
-	val =
-			bin_start_index[thrust::max_element(bin_start_index.begin(),
-					bin_start_index.begin() + last_active_bin)
-					- bin_start_index.begin()];
-	if (val > 50) {
-		bins_per_axis = bins_per_axis * 1.1;
-	} else if (val < 25 && val > 1) {
-		bins_per_axis = bins_per_axis * .9;
-	}
+//		//QUESTION: I have no idea what is going on here
+//	val =
+//			bin_start_index[thrust::max_element(bin_start_index.begin(),
+//					bin_start_index.begin() + last_active_bin)
+//					- bin_start_index.begin()];
+//	if (val > 50) {
+//		bins_per_axis = bins_per_axis * 1.1;
+//	} else if (val < 25 && val > 1) {
+//		bins_per_axis = bins_per_axis * .9;
+//	}
 	bin_start_index.resize(last_active_bin);
-	cout << "Last active bin: " << last_active_bin << endl;
+	if(debugMode) cout << "Last active bin: " << last_active_bin << endl;
 	Thrust_Inclusive_Scan(bin_start_index);
 	Num_ContactD.resize(last_active_bin);
 	// END STEP 4
@@ -355,7 +390,7 @@ int CollisionDetector::detectPossibleCollisions() {
 #endif
 	Thrust_Inclusive_Scan_Sum(Num_ContactD, number_of_contacts_possible);
 	potentialCollisions.resize(number_of_contacts_possible);
-	cout << "Number of possible collisions: " << number_of_contacts_possible << endl;
+	if(debugMode) cout << "Number of possible collisions: " << number_of_contacts_possible << endl;
 	// END STEP 5
 
 	// STEP 6: Store the possible AABB collision pairs
@@ -378,11 +413,11 @@ int CollisionDetector::detectPossibleCollisions() {
 	thrust::sort(potentialCollisions.begin(), potentialCollisions.end());
 	number_of_contacts_possible = thrust::unique(potentialCollisions.begin(),
 			potentialCollisions.end()) - potentialCollisions.begin();
-	cout << "Number of possible collisions: " << number_of_contacts_possible << endl;
+	if(debugMode) cout << "Number of possible collisions: " << number_of_contacts_possible << endl;
 	// END STEP 6
 
 	double endTime = omp_get_wtime();
-	printf("Time to detect: %lf seconds\n", (endTime - startTime));
+	if(debugMode) printf("Time to detect: %lf seconds\n", (endTime - startTime));
 	return 0;
 }
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
