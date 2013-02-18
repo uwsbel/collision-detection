@@ -18,43 +18,35 @@ include(SBELUtils.cmake)
 # - [not set] - unoptimized                              #
 ##########################################################
 
-# include CUSP
-SET(CUSP_INC_DIR "" CACHE PATH "Where is the CUSP include directory?")
-include_directories(${CUSP_INC_DIR})
+enable_cuda_support()
 
-## Example MPI program
-#enable_mpi_support()
-#add_executable(integrate_mpi integrate_mpi.cpp)
-#target_link_libraries(integrate_mpi ${MPI_CXX_LIBRARIES})
+IF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+	enable_openmp_support()
+	
+ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+	
+ENDIF()
 
-# Example OpenMP program
-enable_openmp_support()
-#add_executable(integrate_omp integrate_omp.cpp)
-include_directories(${CUDA_SDK_ROOT_DIR}/common/inc)
-include_directories(${CUDA_SDK_ROOT_DIR}/../shared/inc)
+cuda_add_library(sscd SHARED Broadphase.cu Broadphase.h Narrowphase.cu Narrowphase.h AABBGenerator.cu AABBGenerator.h sscd.h sscdMath.h SupportFunctions.cuh)
 
-# Using Armadillo
-find_package( Armadillo REQUIRED )
-include_directories(${ARMADILLO_INCLUDE_DIRS})
+IF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+	
+ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+	FIND_LIBRARY(CUDA_FRAMEWORK CUDA)
+	SET_TARGET_PROPERTIES( sscd PROPERTIES XCODE_ATTRIBUTE_ENABLE_OPENMP_SUPPORT YES )
+	target_link_libraries(sscd ${CUDA_FRAMEWORK})
+ENDIF()
 
-# include OpenGL
-find_package("GLUT")
-find_package("OpenGL")
-	#freeglut is not found properly on windows
-	IF ("${CH_OS}" STREQUAL "WINDOWS")
-		SET(FREEGLUT_LIB_PATH       ""    	CACHE PATH "Where is freeglut located?")		 	
-		FIND_LIBRARY( FREEGLUT_LIB NAMES glut glut32 freeglut PATHS ${FREEGLUT_LIB_PATH})
-	ENDIF()
-	MARK_AS_ADVANCED(FORCE FREEGLUT_LIB)
+
+
 
 # Example CUDA program
-enable_cuda_support()
-cuda_add_library(sscd SHARED CollisionDetector.cu sscd.h)
-target_link_libraries(sscd 
-	${GLUT_LIBRARIES}
-	${FREEGLUT_LIB}
-	${OPENGL_LIBRARIES}
-	${ARMADILLO_LIBRARIES}
-	)
-cuda_add_executable(SSCD main.cu)
-target_link_libraries(SSCD sscd)
+
+# target_link_libraries(sscd 
+# 	${GLUT_LIBRARIES}
+# 	${FREEGLUT_LIB}
+# 	${OPENGL_LIBRARIES}
+# 	${ARMADILLO_LIBRARIES}
+# 	)
+# cuda_add_executable(SSCD main.cu)
+# target_link_libraries(SSCD sscd)
