@@ -22,9 +22,7 @@ enable_cuda_support()
 
 IF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 	enable_openmp_support()
-	
 ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-	
 ENDIF()
 
 cuda_add_library(sscd SHARED Broadphase.cu Broadphase.h Narrowphase.cu Narrowphase.h AABBGenerator.cu AABBGenerator.h sscd.h sscdMath.h SupportFunctions.cuh)
@@ -37,11 +35,7 @@ ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	target_link_libraries(sscd ${CUDA_FRAMEWORK})
 ENDIF()
 
-
-
-
 # Example CUDA program
-
 # target_link_libraries(sscd 
 # 	${GLUT_LIBRARIES}
 # 	${FREEGLUT_LIB}

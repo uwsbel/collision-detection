@@ -110,7 +110,7 @@ __device__ __host__ bool CollideAndFindPoint(SHAPE typeA, real3 A_X, real3 A_Y, 
     v0 = v02 - v01;
 
     // Avoid case where centers overlap -- any direction is fine in this case
-    if (IsZero3(v0))
+    if (IsZero(v0))
         v0 = real3(1, 0, 0);
 
     // v1 = support in direction of origin
@@ -126,7 +126,7 @@ __device__ __host__ bool CollideAndFindPoint(SHAPE typeA, real3 A_X, real3 A_Y, 
     // v2 - support perpendicular to v1,v0
     n = cross(v1, v0);
 
-    if (IsZero3(n)) {
+    if (IsZero(n)) {
         n = v1 - v0;
         n = normalize(n);
         returnNormal = n;

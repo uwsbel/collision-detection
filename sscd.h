@@ -41,16 +41,11 @@ using namespace std;
 #undef _GLIBCXX_ATOMIC_BUILTINS
 #undef _GLIBCXX_USE_INT128
 
-#define Vector_ZERO_EPSILON 1e-8
 #define MIN_ZERO_EPSILON 1.1754943508222875E-38
 #define EPS FLT_EPSILON
 #define kCollideEpsilon  1e-5f
 
 enum SHAPE { SPHERE, ELLIPSOID, BOX, CYLINDER, RECT, CONE, TRIANGLEMESH};
-
-
-
-
 
 //===================================USE CUDA?=================================//
 #define SIM_ENABLE_GPU_MODE

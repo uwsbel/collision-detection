@@ -71,24 +71,24 @@ __device__ __host__ inline real3 GetSupportPoint_Cone(const real3 &B, const real
 
 
 __device__ __host__ inline real3 GetCenter_Sphere() {
-    return Zero_Vector;
+    return ZERO_VECTOR;
 }
 __device__ __host__ inline real3 GetCenter_Triangle(const real3 &A, const real3 &B, const real3 &C) {
     return real3((A.x + B.x + C.x) / 3.0f, (A.y + B.y + C.y) / 3.0f, (A.z + B.z + C.z) / 3.0f);
 }
 __device__ __host__ inline real3 GetCenter_Box() {
-    return Zero_Vector;
+    return ZERO_VECTOR;
 }
 __device__ __host__ inline real3 GetCenter_Ellipsoid() {
-    return Zero_Vector;
+    return ZERO_VECTOR;
 }
 __device__ __host__ inline real3 GetCenter_Cylinder() {
-    return Zero_Vector;
+    return ZERO_VECTOR;
 }
 __device__ __host__ inline real3 GetCenter_Plane() {
-    return Zero_Vector;
+    return ZERO_VECTOR;
 }
 __device__ __host__ inline real3 GetCenter_Cone() {
-    return Zero_Vector;
+    return ZERO_VECTOR;
 }
 #endif
