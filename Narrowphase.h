@@ -3,7 +3,7 @@
 
 #pragma once
 #include "sscd.h"
-#include "sscdMath.h"
+#include "includes/gpu_math.h"
 #include "SupportFunctions.cuh"
 class Narrowphase {
     public:
