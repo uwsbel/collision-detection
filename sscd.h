@@ -120,3 +120,5 @@ enum SHAPE { SPHERE, ELLIPSOID, BOX, CYLINDER, RECT, CONE, TRIANGLEMESH};
 #define INIT_CHECK_THREAD_BOUNDED(x,y)  uint index = x; if (index >= y) { return;}
 
 #endif
+
+
