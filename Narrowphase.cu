@@ -2,7 +2,7 @@
 
 __constant__ uint total_possible_contacts_const;
 
-__device__ __host__ real3 GetCenter(const SHAPE &type, const real3 &A, const real3 &B, const real3 &C) {
+__device__ __host__ real3 GetCenter(const shape_type &type, const real3 &A, const real3 &B, const real3 &C) {
     if (type == TRIANGLEMESH) {
         return GetCenter_Triangle(A, B, C); //triangle center
     } else {
@@ -10,7 +10,7 @@ __device__ __host__ real3 GetCenter(const SHAPE &type, const real3 &A, const rea
     }
 }
 
-__device__ __host__ real3 TransformSupportVert(const SHAPE &type, const real3 &A, const real3 &B, const real3 &C, const real4 &R, const real3 &b) {
+__device__ __host__ real3 TransformSupportVert(const shape_type &type, const real3 &A, const real3 &B, const real3 &C, const real4 &R, const real3 &b) {
     real3 localSupport;
     real3 n = normalize(b);
 
@@ -101,7 +101,7 @@ __device__ __host__ real find_dist(real3 &P, real3 &x0, real3 &B, real3 &C, real
 }
 
 //Code for Convex-Convex Collision detection, adopted from xeno-collide
-__device__ __host__ bool CollideAndFindPoint(SHAPE typeA, real3 A_X, real3 A_Y, real3 A_Z, real4 A_R, SHAPE typeB, real3 B_X, real3 B_Y, real3 B_Z, real4 B_R, real3 &returnNormal, real3 &point,
+__device__ __host__ bool CollideAndFindPoint(shape_type typeA, real3 A_X, real3 A_Y, real3 A_Z, real4 A_R, shape_type typeB, real3 B_X, real3 B_Y, real3 B_Z, real4 B_R, real3 &returnNormal, real3 &point,
         real &depth) {
     real3 v01, v02, v0, n, v11, v12, v1, v21, v22, v2;
     // v0 = center of Minkowski sum
@@ -268,7 +268,7 @@ __device__ __host__ bool CollideAndFindPoint(SHAPE typeA, real3 A_X, real3 A_Y, 
 
 __host__ __device__ void function_MPR_Store(
     const uint &index,
-    const SHAPE *obj_data_T,
+    const shape_type *obj_data_T,
     const  real3 *obj_data_A,
     const  real3 *obj_data_B,
     const  real3 *obj_data_C,
@@ -288,7 +288,7 @@ __host__ __device__ void function_MPR_Store(
 ) {
     long long p = contact_pair[index];
     int2 pair = I2(int(p >> 32), int(p & 0xffffffff));
-    SHAPE A_T = obj_data_T[pair.x], B_T = obj_data_T[pair.y]; //Get the type data for each object in the collision pair
+    shape_type A_T = obj_data_T[pair.x], B_T = obj_data_T[pair.y]; //Get the type data for each object in the collision pair
     uint ID_A = obj_data_ID[pair.x];
     uint ID_B = obj_data_ID[pair.y];
     real3 posA = body_pos[ID_A], posB = body_pos[ID_B]; //Get the global object position
@@ -334,7 +334,7 @@ __host__ __device__ void function_MPR_Store(
 
 
 __global__ void device_MPR_Store(
-    const SHAPE *obj_data_T,
+    const shape_type *obj_data_T,
     const  real3 *obj_data_A,
     const  real3 *obj_data_B,
     const  real3 *obj_data_C,
@@ -371,7 +371,7 @@ __global__ void device_MPR_Store(
 
 
 void Narrowphase::host_MPR_Store(
-    const SHAPE *obj_data_T,
+    const shape_type *obj_data_T,
     const  real3 *obj_data_A,
     const  real3 *obj_data_B,
     const  real3 *obj_data_C,
@@ -408,26 +408,30 @@ void Narrowphase::host_MPR_Store(
             ids);
     }
 }
-
+Narrowphase::Narrowphase() {}
 
 
 void Narrowphase::DoNarrowphase(
-    const SHAPE *obj_data_T,
-    const real3 *obj_data_A,
-    const real3 *obj_data_B,
-    const real3 *obj_data_C,
-    const real4 *obj_data_R,
-    const uint   *obj_data_ID,
-    const real3 *body_pos,
-    const real4 *body_rot,
+    const custom_vector<shape_type> &obj_data_T,
+    const custom_vector<real3> &obj_data_A,
+    const custom_vector<real3> &obj_data_B,
+    const custom_vector<real3> &obj_data_C,
+    const custom_vector<real4> &obj_data_R,
+    const custom_vector<uint>   &obj_data_ID,
+    const custom_vector<real3> &body_pos,
+    const custom_vector<real4> &body_rot,
     custom_vector<long long> &potentialCollisions,
     custom_vector<real3> &norm_data,
     custom_vector<real3> &cpta_data,
     custom_vector<real3> &cptb_data,
     custom_vector<real> &dpth_data,
-    custom_vector<uint2> &bids_data
+    custom_vector<int2> &bids_data,
+    uint &number_of_contacts
 ) {
-    uint total_possible_contacts = potentialCollisions.size();
+    total_possible_contacts = potentialCollisions.size();
+#ifdef DEBUG_GPU
+    cout << "Number of total_possible_contacts: " << total_possible_contacts << endl;
+#endif
     custom_vector<uint> generic_counter(total_possible_contacts);
     thrust::fill(generic_counter.begin(), generic_counter.end(), 1);
     norm_data.resize(total_possible_contacts);
@@ -435,10 +439,8 @@ void Narrowphase::DoNarrowphase(
     cptb_data.resize(total_possible_contacts);
     dpth_data.resize(total_possible_contacts);
     bids_data.resize(total_possible_contacts);
-    
 #ifdef SIM_ENABLE_GPU_MODE
-
-COPY_TO_CONST_MEM(total_possible_contacts);
+    COPY_TO_CONST_MEM(total_possible_contacts);
     device_MPR_Store __KERNEL__(BLOCKS(total_possible_contacts), THREADS)(
         CASTS(obj_data_T),
         CASTR3(obj_data_A),
@@ -473,7 +475,10 @@ COPY_TO_CONST_MEM(total_possible_contacts);
         dpth_data.data(),
         bids_data.data());
 #endif
-    uint number_of_contacts = total_possible_contacts - Thrust_Count(generic_counter, 1);
+    number_of_contacts = total_possible_contacts - Thrust_Count(generic_counter, 1);
+#ifdef DEBUG_GPU
+    cout << "Number of number_of_contacts: " << number_of_contacts << endl;
+#endif
     thrust::sort_by_key(
         generic_counter.begin(),
         generic_counter.end(),
