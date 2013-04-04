@@ -4,7 +4,7 @@
 #pragma once
 #include "sscd.h"
 #include "includes/gpu_math.h"
-#include "CHcAABBGenerator.cuh"
+#include "AABBGenerator.cuh"
 class Broadphase {
     public:
         // variables
@@ -13,12 +13,6 @@ class Broadphase {
         // functions
         Broadphase();
         Broadphase(custom_vector<real3> aabb_data);     // constructor
-        int detectPossibleCollisions(custom_vector<real3> &aabb_data, custom_vector<long long> &potentialCollisions);
-        int setBinsPerAxis(real3 binsPerAxis);
-        real3 getBinsPerAxis();
-
-
-
         int detectPossibleCollisions(custom_vector<real3> &aabb_data, custom_vector<long long> &potentialCollisions);
         int setBinsPerAxis(real3 binsPerAxis);
         real3 getBinsPerAxis();

@@ -32,13 +32,6 @@ __device__ __host__ inline real3 GetSupportPoint_Box(const real3 &B, const real3
 __device__ __host__ inline real3 GetSupportPoint_Ellipsoid(const real3 &B, const real3 &n) {
     return B * B * n / length(n * B);
 }
-__device__ __host__ real sign(real x) {
-    if (x < 0) {
-        return -1;
-    } else {
-        return 1;
-    }
-}
 
 __device__ __host__ inline real3 GetSupportPoint_Cylinder(const real3 &B, const real3 &n) {
     real3 u = R3(0, 1, 0);

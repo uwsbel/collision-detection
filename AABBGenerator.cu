@@ -203,5 +203,5 @@ void AABBGenerator::GenerateAABB(
 //      cout<<real3(aabb_data[i+numAABB]).x<<" "<<real3(aabb_data[i+numAABB]).y<<" "<<real3(aabb_data[i+numAABB]).z<<endl;
 //      cout<<"-------"<<endl;
 //    }
-}
 #endif
+}
