@@ -1,4 +1,4 @@
-#include "AABBGenerator.h"
+#include "AABBGenerator.cuh"
 
 __constant__ uint numAABB_const;
 

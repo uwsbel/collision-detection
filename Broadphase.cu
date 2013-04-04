@@ -1,4 +1,4 @@
-#include "Broadphase.h"
+#include "Broadphase.cuh"
 
 __constant__ uint numAABB_const;
 __constant__ uint last_active_bin_const;

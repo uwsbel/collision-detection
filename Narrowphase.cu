@@ -1,4 +1,4 @@
-#include "Narrowphase.h"
+#include "Narrowphase.cuh"
 
 __constant__ uint total_possible_contacts_const;
 

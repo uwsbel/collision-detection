@@ -25,7 +25,7 @@ IF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 ENDIF()
 
-cuda_add_library(sscd SHARED Broadphase.cu Broadphase.h Narrowphase.cu Narrowphase.h AABBGenerator.cu AABBGenerator.h sscd.h includes/gpu_math.h SupportFunctions.cuh)
+cuda_add_library(sscd SHARED Broadphase.cu Broadphase.cuh Narrowphase.cu Narrowphase.cuh AABBGenerator.cu AABBGenerator.cuh sscd.h includes/gpu_math.h SupportFunctions.cuh)
 
 IF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 	
