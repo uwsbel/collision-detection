@@ -45,10 +45,10 @@ using namespace std;
 #define EPS FLT_EPSILON
 #define kCollideEpsilon  1e-5f
 
-enum SHAPE { SPHERE, ELLIPSOID, BOX, CYLINDER, RECT, CONE, TRIANGLEMESH};
+enum shape_type { SPHERE, ELLIPSOID, BOX, CYLINDER, RECT, CONE, TRIANGLEMESH};
 
 //===================================USE CUDA?=================================//
-#define SIM_ENABLE_GPU_MODE
+//#define SIM_ENABLE_GPU_MODE
 #ifdef SIM_ENABLE_GPU_MODE
 	#define THRUST_DEVICE_SYSTEM THRUST_DEVICE_SYSTEM_CUDA
 	#define custom_vector thrust::device_vector
