@@ -4,7 +4,6 @@
 #pragma once
 //====================================INCLUDES=================================//
 #include <cuda.h>
-//#include <helper_math.h>
 #include <vector>
 #include <numeric>
 #include <algorithm>

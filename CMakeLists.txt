@@ -23,6 +23,7 @@ enable_cuda_support()
 IF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 	enable_openmp_support()
 ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+enable_openmp_support()
 ENDIF()
 
 cuda_add_library(sscd SHARED Broadphase.cu Broadphase.cuh Narrowphase.cu Narrowphase.cuh AABBGenerator.cu AABBGenerator.cuh sscd.h includes/gpu_math.h SupportFunctions.cuh)
