@@ -1,6 +1,6 @@
-[submodule "includes"]
-	path = includes
-	url = https://hmazhar@bitbucket.org/uwsbel/gpumath.git
 [submodule "cmake"]
 	path = cmake
 	url = https://github.com/andrewseidl/ParallelUtils-cmake.git
+[submodule "includes"]
+	path = includes
+	url = https://github.com/hmazhar/gpu_math.git
