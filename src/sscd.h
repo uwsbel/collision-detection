@@ -1,6 +1,9 @@
 #ifndef SSCD_H
 #define SSCD_H
 
+#undef _GLIBCXX_ATOMIC_BUILTINS
+#undef _GLIBCXX_USE_INT128
+
 #pragma once
 //====================================INCLUDES=================================//
 #include <cuda.h>
@@ -49,10 +52,10 @@ enum shape_type { SPHERE, ELLIPSOID, BOX, CYLINDER, RECT, CONE, TRIANGLEMESH};
 //===================================USE CUDA?=================================//
 //#define SIM_ENABLE_GPU_MODE
 #ifdef SIM_ENABLE_GPU_MODE
-	#define THRUST_DEVICE_SYSTEM THRUST_DEVICE_SYSTEM_CUDA
+	//#define THRUST_DEVICE_SYSTEM THRUST_DEVICE_SYSTEM_CUDA
 	#define custom_vector thrust::device_vector
 #else
-	#define THRUST_DEVICE_SYSTEM THRUST_DEVICE_SYSTEM_OMP
+	//#define THRUST_HOST_SYSTEM THRUST_HOST_SYSTEM_OMP
 	#define custom_vector thrust::host_vector
 #endif
 //===================================ECLIPSE=================================//
