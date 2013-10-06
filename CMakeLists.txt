@@ -54,3 +54,10 @@ ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
 	target_link_libraries(collision_detection ${CUDA_FRAMEWORK})
 ENDIF()
 
+##########################################################
+#                                                        # 
+# Tests                                                  #
+#                                                        #
+##########################################################
+cuda_add_executable(test_1 test/test1.cu)
+target_link_libraries(test_1 collision_detection)
