@@ -39,12 +39,23 @@ Broadphase::Broadphase() {
 	// TODO: Fix debug mode to work with compiler settings, add more debugging features (a drawing function would be nice!)
 }
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+real3 Broadphase::getBinsPerAxis() {
+	return bins_per_axis;
+}
+int Broadphase::getMaxBodyPerBin() {
+	return max_body_per_bin;
+}
+int Broadphase::getMinBodyPerBin() {
+	return min_body_per_bin;
+}
 int Broadphase::setBinsPerAxis(real3 binsPerAxis) {
 	bins_per_axis = binsPerAxis;
 	return 0;
 }
-real3 Broadphase::getBinsPerAxis() {
-	return bins_per_axis;
+int Broadphase::setBodyPerBin(int max, int min) {
+	min_body_per_bin=min;
+	max_body_per_bin=max;
+	return 0;
 }
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 template<class T>
