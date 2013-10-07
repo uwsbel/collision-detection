@@ -15,6 +15,7 @@ public:
 	int setBodyPerBin(int max, int min);
 	int getMaxBodyPerBin();
 	int getMinBodyPerBin();
+	uint getNumPossibleContacts();
 
 private:
 	// variables
