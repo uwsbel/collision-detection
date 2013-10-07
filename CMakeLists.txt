@@ -61,3 +61,6 @@ ENDIF()
 ##########################################################
 cuda_add_executable(test_1 test/test1.cu)
 target_link_libraries(test_1 collision_detection)
+
+cuda_add_executable(nSquared_Broadphase test/nSquared_Broadphase.cu)
+target_link_libraries(nSquared_Broadphase collision_detection)

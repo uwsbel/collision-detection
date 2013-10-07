@@ -57,6 +57,9 @@ int Broadphase::setBodyPerBin(int max, int min) {
 	max_body_per_bin=max;
 	return 0;
 }
+uint Broadphase::getNumPossibleContacts() {
+	return number_of_contacts_possible;
+}
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 template<class T>
 inline int3 __host__ __device__ HashMax( //CHANGED: For maximum point, need to check if point lies on edge of bin (TODO: Hmm, fmod still doesn't work completely)
