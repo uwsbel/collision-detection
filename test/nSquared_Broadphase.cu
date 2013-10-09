@@ -1,6 +1,8 @@
 #include "Broadphase.cuh"
 #include <assert.h>
 
+// Test to see if the list of potential collisions from broadphase includes all of the ACTUAL collisions.
+
 double getRandomNumber(double min, double max)
 {
    // x is in [0,1[
