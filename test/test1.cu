@@ -1,6 +1,8 @@
 #include "Broadphase.cuh"
 #include <assert.h>
 
+// Simple test a single bin in broadphase
+
 int main(int argc, char** argv)
 {
 	// Test
