@@ -16,4 +16,4 @@ How to install and build the library
 
 * Download and install [CUDA](https://developer.nvidia.com/cuda-downloads)
 * Clone this repository
-* Use CMake(http://www.cmake.org) to generate a native makefile and workspace that can be used in the compiler environment of your choice
+* Use [CMake](http://www.cmake.org) to generate a native makefile and workspace that can be used in the compiler environment of your choice
