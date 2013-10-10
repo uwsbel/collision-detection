@@ -28,7 +28,7 @@ int main(int argc, char** argv)
 			for(int i=0;i<numSpheresPerSide;i++)
 			{
 				sphere.pos = make_real3(i*sphereSpacing,j*sphereSpacing,k*sphereSpacing);
-				sphere.r = sphereSpacing;
+				sphere.r = sphereRad;
 				sphere.index = index;
 
 				// add two of these spheres so they must collide with eachother
