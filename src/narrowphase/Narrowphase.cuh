@@ -2,7 +2,7 @@
 #define NARROWPHASE_H
 
 #pragma once
-#include "sscd.h"
+#include "collision_detection.h"
 #include "includes/gpu_math.h"
 #include "SupportFunctions.cuh"
 class Narrowphase {

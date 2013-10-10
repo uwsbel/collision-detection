@@ -2,7 +2,7 @@
 #define AABBGENERATOR_H
 
 #pragma once
-#include "sscd.h"
+#include "collision_detection.h"
 #include "includes/gpu_math.h"
 class AABBGenerator {
 

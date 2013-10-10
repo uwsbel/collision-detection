@@ -40,7 +40,7 @@ cuda_add_library(collision_detection SHARED
 	src/narrowphase/Narrowphase.cuh 
 	src/aabb/AABBGenerator.cu 
 	src/aabb/AABBGenerator.cuh 
-	src/sscd.h 
+	src/collision_detection.h 
 	includes/gpu_math.h 
 	src/SupportFunctions.cuh)
 

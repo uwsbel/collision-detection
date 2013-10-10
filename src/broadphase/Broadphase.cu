@@ -308,13 +308,13 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 		bbox init = bbox(aabb_data[0], aabb_data[0]);// create a zero volume bounding box using the first set of aabb_data (??)
 		bbox_transformation unary_op;
 		bbox_reduction binary_op;
-		bbox result = thrust::transform_reduce(aabb_data.begin(), aabb_data.end(), unary_op, init, binary_op);
+		bbox result = thrust::transform_reduce(EXEC_POLICY,aabb_data.begin(), aabb_data.end(), unary_op, init, binary_op);
 		min_bounding_point = result.first;
 		max_bounding_point = result.second;
 		global_origin = fabs(min_bounding_point);//CHANGED: removed abs
 		bin_size_vec = (fabs(max_bounding_point + fabs(min_bounding_point)));
 		bin_size_vec = bin_size_vec/bins_per_axis;//CHANGED: this was supposed to be reversed, CHANGED BACK this is just the inverse for convenience (saves us the divide later)
-		thrust::transform(aabb_data.begin(), aabb_data.end(), thrust::constant_iterator<real3>(global_origin), aabb_data.begin(), thrust::plus<real3>());//CHANGED: Should be a minus
+		thrust::transform(EXEC_POLICY,aabb_data.begin(), aabb_data.end(), thrust::constant_iterator<real3>(global_origin), aabb_data.begin(), thrust::plus<real3>());//CHANGED: Should be a minus
 #ifdef PRINT_DEBUG_GPU
 		cout << "Global Origin: (" << global_origin.x << ", " << global_origin.y << ", " << global_origin.z << ")" << endl;
 		cout << "Maximum bounding point: (" << max_bounding_point.x << ", " << max_bounding_point.y << ", " << max_bounding_point.z << ")" << endl;
@@ -330,7 +330,7 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 #else
 		host_Count_AABB_BIN_Intersection(aabb_data.data(), Bins_Intersected.data());
 #endif
-		Thrust_Inclusive_Scan_Sum(Bins_Intersected, number_of_bin_intersections);
+		thrust::inclusive_scan(EXEC_POLICY,Bins_Intersected.begin(),Bins_Intersected.end(), Bins_Intersected.begin()); number_of_bin_intersections=Bins_Intersected.back();
 #ifdef PRINT_DEBUG_GPU
 		cout << "Number of bin intersections: " << number_of_bin_intersections << endl;
 #endif
@@ -352,7 +352,7 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 //    	cout<<bin_number[i]<<" "<<body_number[i]<<endl;
 //    }
 
-		Thrust_Sort_By_Key(bin_number, body_number);
+		thrust::sort_by_key(EXEC_POLICY,bin_number.begin(),bin_number.end(),body_number.begin());
 
 //    for(int i=0; i<bin_number.size(); i++){
 //    	cout<<bin_number[i]<<" "<<body_number[i]<<endl;
@@ -361,7 +361,7 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 #ifdef PRINT_DEBUG_GPU
 #endif
 
-		Thrust_Reduce_By_KeyA(last_active_bin, bin_number,bin_start_index);
+		last_active_bin= (thrust::reduce_by_key(EXEC_POLICY,bin_number.begin(),bin_number.end(),thrust::constant_iterator<uint>(1),bin_number.begin(),bin_start_index.begin()).second)-bin_start_index.begin();
 
 //    host_vector<uint> bin_number_t=bin_number;
 //    host_vector<uint> bin_start_index_t(number_of_bin_intersections);
@@ -377,7 +377,7 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 #endif
 ////      //QUESTION: I have no idea what is going on here
 		if(last_active_bin<=0) {number_of_contacts_possible = 0; return 0;}
-		val = bin_start_index[thrust::max_element(bin_start_index.begin(), bin_start_index.begin() + last_active_bin)- bin_start_index.begin()];
+		val = bin_start_index[thrust::max_element(EXEC_POLICY,bin_start_index.begin(), bin_start_index.begin() + last_active_bin)- bin_start_index.begin()];
 
 		if (val > max_body_per_bin) {
 			bins_per_axis = bins_per_axis * 1.1;
@@ -390,7 +390,7 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 		cout <<val<<" "<<bins_per_axis.x<<" "<<bins_per_axis.y<<" "<<bins_per_axis.z<<endl;
 		cout << "Last active bin: " << last_active_bin << endl;
 #endif
-		Thrust_Inclusive_Scan(bin_start_index);
+		thrust::inclusive_scan(EXEC_POLICY,bin_start_index.begin(), bin_start_index.end(), bin_start_index.begin());
 		Num_ContactD.resize(last_active_bin);
 		// END STEP 4
 		// STEP 5: Count the number of AABB collisions
@@ -405,7 +405,7 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 #else
 		host_Count_AABB_AABB_Intersection(aabb_data.data(), bin_number.data(), body_number.data(), bin_start_index.data(), Num_ContactD.data());
 #endif
-		Thrust_Inclusive_Scan_Sum(Num_ContactD, number_of_contacts_possible);
+		thrust::inclusive_scan(EXEC_POLICY,Num_ContactD.begin(),Num_ContactD.end(), Num_ContactD.begin()); number_of_contacts_possible=Num_ContactD.back();
 		potentialCollisions.resize(number_of_contacts_possible);
 #ifdef DEBUG_GPU
 		cout << "Number of possible collisions: " << number_of_contacts_possible << endl;
@@ -428,7 +428,7 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 				Num_ContactD.data(),
 				potentialCollisions.data());
 #endif
-		thrust::sort(potentialCollisions.begin(), potentialCollisions.end());
+		thrust::sort(EXEC_POLICY,potentialCollisions.begin(), potentialCollisions.end());
 		number_of_contacts_possible = thrust::unique(potentialCollisions.begin(),
 				potentialCollisions.end()) - potentialCollisions.begin();
 

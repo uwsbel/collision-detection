@@ -36,7 +36,9 @@
 #include <thrust/sequence.h>
 #include <thrust/count.h>
 #include <vector_types.h>
-
+#include <thrust/system/omp/execution_policy.h>
+#include <thrust/system/cuda/execution_policy.h>
+#include <thrust/system/cpp/execution_policy.h>
 using namespace std;
 //====================================DEFINES=================================//
 // takes care of some GCC issues
@@ -54,9 +56,11 @@ enum shape_type { SPHERE, ELLIPSOID, BOX, CYLINDER, RECT, CONE, TRIANGLEMESH};
 #ifdef SIM_ENABLE_GPU_MODE
 	//#define THRUST_DEVICE_SYSTEM THRUST_DEVICE_SYSTEM_CUDA
 	#define custom_vector thrust::device_vector
+	#define EXEC_POLICY thrust::cuda::par
 #else
 	//#define THRUST_HOST_SYSTEM THRUST_HOST_SYSTEM_OMP
 	#define custom_vector thrust::host_vector
+	#define EXEC_POLICY thrust::omp::par
 #endif
 //===================================ECLIPSE=================================//
 #ifdef __CDT_PARSER__
