@@ -28,7 +28,7 @@ class Broadphase {
 				bool parallel_sort,
 				bool parallel_unique
 		);
-
+		void getParallelConfiguration();
 		private:
 		// variables
 				real3 min_bounding_point;

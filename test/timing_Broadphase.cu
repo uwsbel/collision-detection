@@ -26,85 +26,92 @@ bool isColliding(Sphere sA, Sphere sB) {
 }
 
 int main(int argc, char** argv) {
+	double total_time = 0;
+	for (int i = 0; i < 10; i++) {
+		// Step 1: Generate random spheres
+		uint numSpheres = 300000;
+		double xMin = -30;
+		double xMax = 30;
+		double yMin = -30;
+		double yMax = 30;
+		double zMin = -30;
+		double zMax = 30;
+		double rMin = .1;
+		double rMax = 1;
 
-	// Step 1: Generate random spheres
-	uint numSpheres = 300000;
-	double xMin = -30;
-	double xMax = 30;
-	double yMin = -30;
-	double yMax = 30;
-	double zMin = -30;
-	double zMax = 30;
-	double rMin = .1;
-	double rMax = 1;
+		vector<Sphere> spheres;
 
-	vector<Sphere> spheres;
+		Sphere sphere;
+		for (int i = 0; i < numSpheres; i++) {
+			sphere.pos = make_real3(getRandomNumber(xMin, xMax), getRandomNumber(yMin, yMax), getRandomNumber(zMin, zMax));
+			sphere.r = getRandomNumber(rMin, rMax);
+			sphere.index = i;
 
-	Sphere sphere;
-	for (int i = 0; i < numSpheres; i++) {
-		sphere.pos = make_real3(getRandomNumber(xMin, xMax), getRandomNumber(yMin, yMax), getRandomNumber(zMin, zMax));
-		sphere.r = getRandomNumber(rMin, rMax);
-		sphere.index = i;
+			//printf("Sphere %d pos = (%.3f, %.3f, %.3f), r = %.3f\n",i,sphere.pos.x,sphere.pos.y,sphere.pos.z,sphere.r);
 
-		//printf("Sphere %d pos = (%.3f, %.3f, %.3f), r = %.3f\n",i,sphere.pos.x,sphere.pos.y,sphere.pos.z,sphere.r);
+			spheres.push_back(sphere);
+			//positions.push_back(pos);
+			//radii.push_back(r);
+		}
+		// End Step 1
 
-		spheres.push_back(sphere);
-		//positions.push_back(pos);
-		//radii.push_back(r);
+		// Step 2: Generate aabb_data from spheres
+		custom_vector<real3> aabb_data;
+
+		for (int i = 0; i < spheres.size(); i++) {
+			real3 temp = spheres[i].pos;
+			temp.x -= spheres[i].r;
+			temp.y -= spheres[i].r;
+			temp.z -= spheres[i].r;
+			aabb_data.push_back(temp);
+		}
+		for (int i = 0; i < spheres.size(); i++) {
+			real3 temp = spheres[i].pos;
+			temp.x += spheres[i].r;
+			temp.y += spheres[i].r;
+			temp.z += spheres[i].r;
+			aabb_data.push_back(temp);
+		}
+		// End Step 2
+
+		// Step 3: Run broadphase algorithm to find potential collisions
+
+		custom_vector<long long> potentialCollisions;
+
+		Broadphase broadphaseManager;
+		broadphaseManager.setBinsPerAxis(make_real3(50, 50, 50));
+
+		if (argc == 12) {
+			broadphaseManager.setParallelConfiguration(
+					atoi(argv[1]),
+					atoi(argv[2]),
+					atoi(argv[3]),
+					atoi(argv[4]),
+					atoi(argv[5]),
+					atoi(argv[6]),
+					atoi(argv[7]),
+					atoi(argv[8]),
+					atoi(argv[9]),
+					atoi(argv[10]));
+			omp_set_num_threads(atoi(argv[11]));
+		} else {
+			broadphaseManager.setParallelConfiguration(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+		}
+
+		//cout << "Begin parallel broadphase" << endl;
+		double startTime = omp_get_wtime();
+		broadphaseManager.detectPossibleCollisions(aabb_data, potentialCollisions);
+		double endTime = omp_get_wtime();
+		//printf("Time to detect: %lf seconds (%d possible collisions)\n", (endTime - startTime), broadphaseManager.getNumPossibleContacts());
+		//cout << "End parallel broadphase\n" << endl;
+		total_time += (endTime - startTime);
+		if (i == 9) {
+			cout << omp_get_max_threads() << " " << total_time / 10.0 << " " << broadphaseManager.getNumPossibleContacts() << " ";
+			broadphaseManager.getParallelConfiguration();
+			cout << endl;
+		}
+
 	}
-	// End Step 1
-
-	// Step 2: Generate aabb_data from spheres
-	custom_vector<real3> aabb_data;
-
-	for (int i = 0; i < spheres.size(); i++) {
-		real3 temp = spheres[i].pos;
-		temp.x -= spheres[i].r;
-		temp.y -= spheres[i].r;
-		temp.z -= spheres[i].r;
-		aabb_data.push_back(temp);
-	}
-	for (int i = 0; i < spheres.size(); i++) {
-		real3 temp = spheres[i].pos;
-		temp.x += spheres[i].r;
-		temp.y += spheres[i].r;
-		temp.z += spheres[i].r;
-		aabb_data.push_back(temp);
-	}
-	// End Step 2
-
-	// Step 3: Run broadphase algorithm to find potential collisions
-
-	custom_vector<long long> potentialCollisions;
-
-	Broadphase broadphaseManager;
-	broadphaseManager.setBinsPerAxis(make_real3(50, 50, 50));
-
-	if (argc == 12) {
-		broadphaseManager.setParallelConfiguration(
-				atoi(argv[1]),
-				atoi(argv[2]),
-				atoi(argv[3]),
-				atoi(argv[4]),
-				atoi(argv[5]),
-				atoi(argv[6]),
-				atoi(argv[7]),
-				atoi(argv[8]),
-				atoi(argv[9]),
-				atoi(argv[10]));
-		omp_set_num_threads(atoi(argv[11]));
-	} else {
-		broadphaseManager.setParallelConfiguration(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	}
-
-	cout << "Begin parallel broadphase" << endl;
-	double startTime = omp_get_wtime();
-	broadphaseManager.detectPossibleCollisions(aabb_data, potentialCollisions);
-	double endTime = omp_get_wtime();
-	printf("Time to detect: %lf seconds (%d possible collisions)\n", (endTime - startTime), broadphaseManager.getNumPossibleContacts());
-	cout << "End parallel broadphase\n" << endl;
-
-	// End Step 5
 
 	return 0;
 }

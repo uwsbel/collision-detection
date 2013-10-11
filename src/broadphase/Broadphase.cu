@@ -32,7 +32,7 @@ Broadphase::Broadphase() {
 	bins_per_axis = R3(20, 20, 20);
 	min_body_per_bin = 25;
 	max_body_per_bin = 50;
-	setParallelConfiguration(1,1,1,1,1,1,1,1,1,1);
+	setParallelConfiguration(1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
 	// TODO: Should make aabb_data organization less confusing, compiler should switch depending on if the user passes a host/device vector
 	// TODO: Should be able to tune bins_per_axis, it's nice to have as a parameter though!
 	// TODO: As the collision detection is progressing, we should free up vectors that are no longer being used! For example, Bin_Intersections is only used in steps 4&5
@@ -62,30 +62,40 @@ uint Broadphase::getNumPossibleContacts() {
 	return number_of_contacts_possible;
 }
 void Broadphase::setParallelConfiguration(
-				bool parallel_transform_reduce,
-				bool parallel_transform,
-				bool parallel_inclusive_scan1,
-				bool parallel_sort_by_key,
-				bool parallel_reduce_by_key,
-				bool parallel_max_element,
-				bool parallel_inclusive_scan2,
-				bool parallel_inclusive_scan3,
-				bool parallel_sort,
-				bool parallel_unique
-		) {
-			par_transform_reduce=parallel_transform_reduce;
-			par_transform=parallel_transform;
-			par_inclusive_scan1=parallel_inclusive_scan1;
-			par_sort_by_key=parallel_sort_by_key;
-			par_reduce_by_key=parallel_reduce_by_key;
-			par_max_element=parallel_max_element;
-			par_inclusive_scan2=parallel_inclusive_scan2;
-			par_inclusive_scan3=parallel_inclusive_scan3;
-			par_sort=parallel_sort;
-			par_unique=parallel_unique;
-		}
+		bool parallel_transform_reduce,
+		bool parallel_transform,
+		bool parallel_inclusive_scan1,
+		bool parallel_sort_by_key,
+		bool parallel_reduce_by_key,
+		bool parallel_max_element,
+		bool parallel_inclusive_scan2,
+		bool parallel_inclusive_scan3,
+		bool parallel_sort,
+		bool parallel_unique) {
+	par_transform_reduce = parallel_transform_reduce;
+	par_transform = parallel_transform;
+	par_inclusive_scan1 = parallel_inclusive_scan1;
+	par_sort_by_key = parallel_sort_by_key;
+	par_reduce_by_key = parallel_reduce_by_key;
+	par_max_element = parallel_max_element;
+	par_inclusive_scan2 = parallel_inclusive_scan2;
+	par_inclusive_scan3 = parallel_inclusive_scan3;
+	par_sort = parallel_sort;
+	par_unique = parallel_unique;
+}
 
-
+void Broadphase::getParallelConfiguration() {
+	cout << par_transform_reduce << " ";
+	cout << par_transform << " ";
+	cout << par_inclusive_scan1 << " ";
+	cout << par_sort_by_key << " ";
+	cout << par_reduce_by_key << " ";
+	cout << par_max_element << " ";
+	cout << par_inclusive_scan2 << " ";
+	cout << par_inclusive_scan3 << " ";
+	cout << par_sort << " ";
+	cout << par_unique << " ";
+}
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 template<class T>
