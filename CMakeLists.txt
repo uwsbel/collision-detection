@@ -67,3 +67,6 @@ target_link_libraries(nSquared_Broadphase collision_detection)
 
 cuda_add_executable(binTest_Broadphase test/binTest_Broadphase.cu)
 target_link_libraries(binTest_Broadphase collision_detection)
+
+cuda_add_executable(timing_Broadphase test/timing_Broadphase.cu)
+target_link_libraries(timing_Broadphase collision_detection)

@@ -9,8 +9,8 @@ typedef thrust::pair<real3, real3> bbox;
 // reduce a pair of bounding boxes (a,b) to a bounding box containing a and b
 struct bbox_reduction: public thrust::binary_function<bbox, bbox, bbox> {
 		bbox __host__ __device__ operator()(bbox a, bbox b) {
-			real3 ll = R3(fmin(a.first.x, b.first.x), fmin(a.first.y, b.first.y), fmin(a.first.z, b.first.z)); // lower left corner
-			real3 ur = R3(fmax(a.second.x, b.second.x), fmax(a.second.y, b.second.y), fmax(a.second.z, b.second.z)); // upper right corner
+			real3 ll = R3(fmin(a.first.x, b.first.x), fmin(a.first.y, b.first.y), fmin(a.first.z, b.first.z));     // lower left corner
+			real3 ur = R3(fmax(a.second.x, b.second.x), fmax(a.second.y, b.second.y), fmax(a.second.z, b.second.z));     // upper right corner
 			return bbox(ll, ur);
 		}
 };
@@ -32,6 +32,7 @@ Broadphase::Broadphase() {
 	bins_per_axis = R3(20, 20, 20);
 	min_body_per_bin = 25;
 	max_body_per_bin = 50;
+	setParallelConfiguration(1,1,1,1,1,1,1,1,1,1);
 	// TODO: Should make aabb_data organization less confusing, compiler should switch depending on if the user passes a host/device vector
 	// TODO: Should be able to tune bins_per_axis, it's nice to have as a parameter though!
 	// TODO: As the collision detection is progressing, we should free up vectors that are no longer being used! For example, Bin_Intersections is only used in steps 4&5
@@ -53,25 +54,54 @@ int Broadphase::setBinsPerAxis(real3 binsPerAxis) {
 	return 0;
 }
 int Broadphase::setBodyPerBin(int max, int min) {
-	min_body_per_bin=min;
-	max_body_per_bin=max;
+	min_body_per_bin = min;
+	max_body_per_bin = max;
 	return 0;
 }
 uint Broadphase::getNumPossibleContacts() {
 	return number_of_contacts_possible;
 }
+void Broadphase::setParallelConfiguration(
+				bool parallel_transform_reduce,
+				bool parallel_transform,
+				bool parallel_inclusive_scan1,
+				bool parallel_sort_by_key,
+				bool parallel_reduce_by_key,
+				bool parallel_max_element,
+				bool parallel_inclusive_scan2,
+				bool parallel_inclusive_scan3,
+				bool parallel_sort,
+				bool parallel_unique
+		) {
+			par_transform_reduce=parallel_transform_reduce;
+			par_transform=parallel_transform;
+			par_inclusive_scan1=parallel_inclusive_scan1;
+			par_sort_by_key=parallel_sort_by_key;
+			par_reduce_by_key=parallel_reduce_by_key;
+			par_max_element=parallel_max_element;
+			par_inclusive_scan2=parallel_inclusive_scan2;
+			par_inclusive_scan3=parallel_inclusive_scan3;
+			par_sort=parallel_sort;
+			par_unique=parallel_unique;
+		}
+
+
+
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 template<class T>
-inline int3 __host__ __device__ HashMax( //CHANGED: For maximum point, need to check if point lies on edge of bin (TODO: Hmm, fmod still doesn't work completely)
+inline int3 __host__ __device__ HashMax(     //CHANGED: For maximum point, need to check if point lies on edge of bin (TODO: Hmm, fmod still doesn't work completely)
 		const T &A,
 		const real3 & bin_size_vec) {
 	int3 temp;
 	temp.x = A.x / bin_size_vec.x;
-	if (!fmod(A.x, bin_size_vec.x) && temp.x != 0) temp.x--;
+	if (!fmod(A.x, bin_size_vec.x) && temp.x != 0)
+		temp.x--;
 	temp.y = A.y / bin_size_vec.y;
-	if (!fmod(A.y, bin_size_vec.y) && temp.y != 0) temp.y--;
+	if (!fmod(A.y, bin_size_vec.y) && temp.y != 0)
+		temp.y--;
 	temp.z = A.z / bin_size_vec.z;
-	if (!fmod(A.z, bin_size_vec.z) && temp.z != 0) temp.z--;
+	if (!fmod(A.z, bin_size_vec.z) && temp.z != 0)
+		temp.z--;
 
 	//cout << temp.x << " " << temp.y << " " << temp.z << endl;
 	return temp;
@@ -180,7 +210,8 @@ inline void __host__ __device__ function_Count_AABB_AABB_Intersection(
 			Bmax = aabb_data[tempb + number_of_particles];
 			bool inContact = (Amin.x <= Bmax.x && Bmin.x <= Amax.x) && (Amin.y <= Bmax.y && Bmin.y <= Amax.y) && (Amin.z <= Bmax.z && Bmin.z <= Amax.z);
 
-			if (inContact) count++;
+			if (inContact)
+				count++;
 		}
 	}
 
@@ -245,7 +276,7 @@ inline void __host__ __device__ function_Store_AABB_AABB_Intersection(
 					b = t;
 				}
 
-				potential_contacts[offset + count] = ((long long) a << 32 | (long long) b); //the two indicies of the objects that make up the contact
+				potential_contacts[offset + count] = ((long long) a << 32 | (long long) b);     //the two indicies of the objects that make up the contact
 				count++;
 			}
 		}
@@ -289,7 +320,6 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 	double startTime = omp_get_wtime();
 	numAABB = aabb_data.size()/2;
 
-
 #ifdef PRINT_DEBUG_GPU
 		cout << "Number of AABBs: "<<numAABB<<endl;
 #endif
@@ -308,13 +338,22 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 		bbox init = bbox(aabb_data[0], aabb_data[0]);// create a zero volume bounding box using the first set of aabb_data (??)
 		bbox_transformation unary_op;
 		bbox_reduction binary_op;
-		bbox result = thrust::transform_reduce(EXEC_POLICY,aabb_data.begin(), aabb_data.end(), unary_op, init, binary_op);
+		bbox result;
+		if(par_transform_reduce) {
+			result = thrust::transform_reduce(EXEC_POLICY,aabb_data.begin(), aabb_data.end(), unary_op, init, binary_op);
+		} else {
+			result = thrust::transform_reduce(aabb_data.begin(), aabb_data.end(), unary_op, init, binary_op);
+		}
 		min_bounding_point = result.first;
 		max_bounding_point = result.second;
-		global_origin = fabs(min_bounding_point);//CHANGED: removed abs
+		global_origin = fabs(min_bounding_point);		//CHANGED: removed abs
 		bin_size_vec = (fabs(max_bounding_point + fabs(min_bounding_point)));
 		bin_size_vec = bin_size_vec/bins_per_axis;//CHANGED: this was supposed to be reversed, CHANGED BACK this is just the inverse for convenience (saves us the divide later)
-		thrust::transform(EXEC_POLICY,aabb_data.begin(), aabb_data.end(), thrust::constant_iterator<real3>(global_origin), aabb_data.begin(), thrust::plus<real3>());//CHANGED: Should be a minus
+		if(par_transform) {
+			thrust::transform(EXEC_POLICY,aabb_data.begin(), aabb_data.end(), thrust::constant_iterator<real3>(global_origin), aabb_data.begin(), thrust::plus<real3>());     //CHANGED: Should be a minus
+		} else {
+			thrust::transform(aabb_data.begin(), aabb_data.end(), thrust::constant_iterator<real3>(global_origin), aabb_data.begin(), thrust::plus<real3>());     //CHANGED: Should be a minus
+		}
 #ifdef PRINT_DEBUG_GPU
 		cout << "Global Origin: (" << global_origin.x << ", " << global_origin.y << ", " << global_origin.z << ")" << endl;
 		cout << "Maximum bounding point: (" << max_bounding_point.x << ", " << max_bounding_point.y << ", " << max_bounding_point.z << ")" << endl;
@@ -330,7 +369,11 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 #else
 		host_Count_AABB_BIN_Intersection(aabb_data.data(), Bins_Intersected.data());
 #endif
-		thrust::inclusive_scan(EXEC_POLICY,Bins_Intersected.begin(),Bins_Intersected.end(), Bins_Intersected.begin()); number_of_bin_intersections=Bins_Intersected.back();
+		if(par_inclusive_scan1) {
+			thrust::inclusive_scan(EXEC_POLICY,Bins_Intersected.begin(),Bins_Intersected.end(), Bins_Intersected.begin()); number_of_bin_intersections=Bins_Intersected.back();
+		} else {
+			thrust::inclusive_scan(Bins_Intersected.begin(),Bins_Intersected.end(), Bins_Intersected.begin()); number_of_bin_intersections=Bins_Intersected.back();
+		}
 #ifdef PRINT_DEBUG_GPU
 		cout << "Number of bin intersections: " << number_of_bin_intersections << endl;
 #endif
@@ -351,18 +394,22 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 //    for(int i=0; i<bin_number.size(); i++){
 //    	cout<<bin_number[i]<<" "<<body_number[i]<<endl;
 //    }
-
-		thrust::sort_by_key(EXEC_POLICY,bin_number.begin(),bin_number.end(),body_number.begin());
-
+		if(par_sort_by_key) {
+			thrust::sort_by_key(EXEC_POLICY,bin_number.begin(),bin_number.end(),body_number.begin());
+		} else {
+			thrust::sort_by_key(bin_number.begin(),bin_number.end(),body_number.begin());
+		}
 //    for(int i=0; i<bin_number.size(); i++){
 //    	cout<<bin_number[i]<<" "<<body_number[i]<<endl;
 //    }
 
 #ifdef PRINT_DEBUG_GPU
 #endif
-
-		last_active_bin= (thrust::reduce_by_key(EXEC_POLICY,bin_number.begin(),bin_number.end(),thrust::constant_iterator<uint>(1),bin_number.begin(),bin_start_index.begin()).second)-bin_start_index.begin();
-
+		if(par_reduce_by_key) {
+			last_active_bin= (thrust::reduce_by_key(EXEC_POLICY,bin_number.begin(),bin_number.end(),thrust::constant_iterator<uint>(1),bin_number.begin(),bin_start_index.begin()).second)-bin_start_index.begin();
+		} else {
+			last_active_bin= (thrust::reduce_by_key(bin_number.begin(),bin_number.end(),thrust::constant_iterator<uint>(1),bin_number.begin(),bin_start_index.begin()).second)-bin_start_index.begin();
+		}
 //    host_vector<uint> bin_number_t=bin_number;
 //    host_vector<uint> bin_start_index_t(number_of_bin_intersections);
 //    host_vector<uint> Output(number_of_bin_intersections);
@@ -377,8 +424,12 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 #endif
 ////      //QUESTION: I have no idea what is going on here
 		if(last_active_bin<=0) {number_of_contacts_possible = 0; return 0;}
-		val = bin_start_index[thrust::max_element(EXEC_POLICY,bin_start_index.begin(), bin_start_index.begin() + last_active_bin)- bin_start_index.begin()];
+		if(par_max_element) {
+			val = bin_start_index[thrust::max_element(EXEC_POLICY,bin_start_index.begin(), bin_start_index.begin() + last_active_bin)- bin_start_index.begin()];
+		} else {
+			val = bin_start_index[thrust::max_element(bin_start_index.begin(), bin_start_index.begin() + last_active_bin)- bin_start_index.begin()];
 
+		}
 		if (val > max_body_per_bin) {
 			bins_per_axis = bins_per_axis * 1.1;
 		} else if (val < min_body_per_bin && val > 10) {
@@ -390,7 +441,12 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 		cout <<val<<" "<<bins_per_axis.x<<" "<<bins_per_axis.y<<" "<<bins_per_axis.z<<endl;
 		cout << "Last active bin: " << last_active_bin << endl;
 #endif
-		thrust::inclusive_scan(EXEC_POLICY,bin_start_index.begin(), bin_start_index.end(), bin_start_index.begin());
+
+		if(par_inclusive_scan2) {
+			thrust::inclusive_scan(EXEC_POLICY,bin_start_index.begin(), bin_start_index.end(), bin_start_index.begin());
+		} else {
+			thrust::inclusive_scan(bin_start_index.begin(), bin_start_index.end(), bin_start_index.begin());
+		}
 		Num_ContactD.resize(last_active_bin);
 		// END STEP 4
 		// STEP 5: Count the number of AABB collisions
@@ -405,7 +461,11 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 #else
 		host_Count_AABB_AABB_Intersection(aabb_data.data(), bin_number.data(), body_number.data(), bin_start_index.data(), Num_ContactD.data());
 #endif
-		thrust::inclusive_scan(EXEC_POLICY,Num_ContactD.begin(),Num_ContactD.end(), Num_ContactD.begin()); number_of_contacts_possible=Num_ContactD.back();
+		if(par_inclusive_scan3) {
+			thrust::inclusive_scan(EXEC_POLICY,Num_ContactD.begin(),Num_ContactD.end(), Num_ContactD.begin()); number_of_contacts_possible=Num_ContactD.back();
+		} else {
+			thrust::inclusive_scan(Num_ContactD.begin(),Num_ContactD.end(), Num_ContactD.begin()); number_of_contacts_possible=Num_ContactD.back();
+		}
 		potentialCollisions.resize(number_of_contacts_possible);
 #ifdef DEBUG_GPU
 		cout << "Number of possible collisions: " << number_of_contacts_possible << endl;
@@ -428,9 +488,18 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 				Num_ContactD.data(),
 				potentialCollisions.data());
 #endif
-		thrust::sort(EXEC_POLICY,potentialCollisions.begin(), potentialCollisions.end());
-		number_of_contacts_possible = thrust::unique(potentialCollisions.begin(),
-				potentialCollisions.end()) - potentialCollisions.begin();
+		if(par_sort) {
+			thrust::sort(EXEC_POLICY,potentialCollisions.begin(), potentialCollisions.end());
+		} else {
+			thrust::sort(potentialCollisions.begin(), potentialCollisions.end());
+		}
+		if(par_unique) {
+			number_of_contacts_possible = thrust::unique(EXEC_POLICY,potentialCollisions.begin(),
+					potentialCollisions.end()) - potentialCollisions.begin();
+		} else {
+			number_of_contacts_possible = thrust::unique(potentialCollisions.begin(),
+					potentialCollisions.end()) - potentialCollisions.begin();
+		}
 
 		potentialCollisions.resize(number_of_contacts_possible);
 #ifdef PRINT_DEBUG_GPU
