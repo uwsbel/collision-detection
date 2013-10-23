@@ -1,3 +1,8 @@
+/*******************************************************
+ * Copyright (C) 2012-2013 Hammad Mazhar <hammad@hamelot.co.uk>, Simulation Based Engineering Lab <sbel.wisc.edu>
+ * Some rights reserved. See LICENSE, AUTHORS.
+ * This file is part of Chrono-Collide.
+ *******************************************************/
 #ifndef SSCD_H
 #define SSCD_H
 
@@ -94,7 +99,7 @@ enum shape_type { SPHERE, ELLIPSOID, BOX, CYLINDER, RECT, CONE, TRIANGLEMESH};
 #define CASTD4(x) (double4*)thrust::raw_pointer_cast(&x[0])
 #define CASTB1(x) (bool*)thrust::raw_pointer_cast(&x[0])
 #define CASTLL(x) (long long*)thrust::raw_pointer_cast(&x[0])
-#define CASTS(x) (SHAPE*)thrust::raw_pointer_cast(&x[0])
+#define CASTS(x) (shape_type*)thrust::raw_pointer_cast(&x[0])
 
 //====================================THRUST=================================//
 #define Thrust_Inclusive_Scan_Sum(x,y)  thrust::inclusive_scan(x.begin(),x.end(), x.begin()); y=x.back();

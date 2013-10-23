@@ -1,3 +1,9 @@
+/*******************************************************
+ * Copyright (C) 2012-2013 Hammad Mazhar <hammad@hamelot.co.uk>, Simulation Based Engineering Lab <sbel.wisc.edu>
+ * Some rights reserved. See LICENSE, AUTHORS.
+ * This file is part of Chrono-Collide.
+ *******************************************************/
+
 #ifndef AABBGENERATOR_H
 #define AABBGENERATOR_H
 

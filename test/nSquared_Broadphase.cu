@@ -27,7 +27,7 @@ bool isColliding(Sphere sA, Sphere sB) {
 
 int main(int argc, char** argv) {
 	// Step 1: Generate random spheres
-	uint numSpheres = 300;
+	uint numSpheres = 300000;
 	double xMin = -30;
 	double xMax = 30;
 	double yMin = -30;
@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
 	custom_vector<long long> potentialCollisions;
 
 	Broadphase broadphaseManager;
-	broadphaseManager.setBinsPerAxis(make_real3(50, 50, 50));
+	broadphaseManager.setBinsPerAxis(make_real3(30,30,30));
 
 	cout << "Begin parallel broadphase" << endl;
 	double startTime = omp_get_wtime();
