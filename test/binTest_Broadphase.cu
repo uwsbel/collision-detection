@@ -11,8 +11,14 @@ struct Sphere {
 int main(int argc, char** argv) {
 	// Step 1: Generate random spheres
 	uint numSpheresPerSide = 10;     // number of spheres per side
-	if (argc == 2)
+	uint bpa = 10;
+	if (argc == 2){
 		numSpheresPerSide = atoi(argv[1]);
+	}
+	if (argc == 3){
+			numSpheresPerSide = atoi(argv[1]);
+			bpa = atoi(argv[2]);
+	}
 	double sphereRad = 0.25;
 	double sphereSpacing = 1;
 
@@ -60,7 +66,7 @@ int main(int argc, char** argv) {
 	custom_vector<long long> potentialCollisions;
 
 	Broadphase broadphaseManager;
-	broadphaseManager.setBinsPerAxis(make_real3(50,50,50));
+	broadphaseManager.setBinsPerAxis(I3(bpa,bpa,bpa));
 
 	cout << "Begin parallel broadphase" << endl;
 	double startTime = omp_get_wtime();
@@ -69,6 +75,12 @@ int main(int argc, char** argv) {
 	printf("Time to detect: %lf seconds (%d possible collisions)\n", (endTime - startTime), broadphaseManager.getNumPossibleContacts());
 	cout << "End parallel broadphase\n" << endl;
 	// End Step 3
+//int count = 0;
+//	for(int i=0; i<potentialCollisions.size(); i++){
+//		int2 pair = I2(int(potentialCollisions[i] >> 32), int(potentialCollisions[i] & 0xffffffff));
+//		count+=2;
+//		cout<<pair.x<<" "<<pair.y<<" "<<count-1<<endl;
+//	}
 
 	if (broadphaseManager.getNumPossibleContacts() == pow(numSpheresPerSide, 3)) {
 		cout << "TEST PASSED" << endl;

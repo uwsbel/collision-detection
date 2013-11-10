@@ -55,7 +55,7 @@ using namespace std;
 #define kCollideEpsilon  1e-5f
 
 enum shape_type { SPHERE, ELLIPSOID, BOX, CYLINDER, RECT, CONE, TRIANGLEMESH};
-
+//#define PRINT_DEBUG_GPU
 //===================================USE CUDA?=================================//
 //#define SIM_ENABLE_GPU_MODE
 #ifdef SIM_ENABLE_GPU_MODE

@@ -9,13 +9,13 @@ __constant__ uint numAABB_const;
 __constant__ uint last_active_bin_const;
 __constant__ uint number_of_contacts_possible_const;
 __constant__ real3 bin_size_vec_const;
-
+__constant__ int3 grid_size_const;
 typedef thrust::pair<real3, real3> bbox;
 // reduce a pair of bounding boxes (a,b) to a bounding box containing a and b
 struct bbox_reduction: public thrust::binary_function<bbox, bbox, bbox> {
 		bbox __host__ __device__ operator()(bbox a, bbox b) {
-			real3 ll = R3(fmin(a.first.x, b.first.x), fmin(a.first.y, b.first.y), fmin(a.first.z, b.first.z));     // lower left corner
-			real3 ur = R3(fmax(a.second.x, b.second.x), fmax(a.second.y, b.second.y), fmax(a.second.z, b.second.z));     // upper right corner
+			real3 ll = R3(fminf(a.first.x, b.first.x), fminf(a.first.y, b.first.y), fminf(a.first.z, b.first.z));     // lower left corner
+			real3 ur = R3(fmaxf(a.second.x, b.second.x), fmaxf(a.second.y, b.second.y), fmaxf(a.second.z, b.second.z));     // upper right corner
 			return bbox(ll, ur);
 		}
 };
@@ -34,19 +34,19 @@ Broadphase::Broadphase() {
 	last_active_bin = 0;
 	number_of_bin_intersections = 0;
 	numAABB = 0;
-	bins_per_axis = R3(20, 20, 20);
+	grid_size = I3(16, 16, 16);
 	min_body_per_bin = 25;
 	max_body_per_bin = 50;
 	setParallelConfiguration(1, 0, 1, 0, 0, 0, 0, 0, 1, 0);
 	// TODO: Should make aabb_data organization less confusing, compiler should switch depending on if the user passes a host/device vector
-	// TODO: Should be able to tune bins_per_axis, it's nice to have as a parameter though!
+	// TODO: Should be able to tune grid_size, it's nice to have as a parameter though!
 	// TODO: As the collision detection is progressing, we should free up vectors that are no longer being used! For example, Bin_Intersections is only used in steps 4&5
 	// TODO: Make sure that aabb_data isn't being duplicated for this code (should be a reference to user's code to conserve space)
 	// TODO: Fix debug mode to work with compiler settings, add more debugging features (a drawing function would be nice!)
 }
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-real3 Broadphase::getBinsPerAxis() {
-	return bins_per_axis;
+int3 Broadphase::getBinsPerAxis() {
+	return grid_size;
 }
 int Broadphase::getMaxBodyPerBin() {
 	return max_body_per_bin;
@@ -54,8 +54,8 @@ int Broadphase::getMaxBodyPerBin() {
 int Broadphase::getMinBodyPerBin() {
 	return min_body_per_bin;
 }
-int Broadphase::setBinsPerAxis(real3 binsPerAxis) {
-	bins_per_axis = binsPerAxis;
+int Broadphase::setBinsPerAxis(int3 binsPerAxis) {
+	grid_size = binsPerAxis;
 	return 0;
 }
 int Broadphase::setBodyPerBin(int max, int min) {
@@ -125,22 +125,31 @@ inline int3 __host__ __device__ HashMax(     //CHANGED: For maximum point, need 
 template<class T>
 inline int3 __host__ __device__ HashMin(const T &A, const real3 &bin_size_vec) {
 	int3 temp;
-	temp.x = A.x / bin_size_vec.x;
-	temp.y = A.y / bin_size_vec.y;
-	temp.z = A.z / bin_size_vec.z;
+	temp.x = (A.x * bin_size_vec.x);
+	temp.y = (A.y * bin_size_vec.y);
+	temp.z = (A.z * bin_size_vec.z);
 	//cout << temp.x << " " << temp.y << " " << temp.z << endl;
 	return temp;
 }
 
+//template<class T>
+//inline uint __host__ __device__ Hash_Index(const T &A) {
+//	return ((A.x * 73856093) ^ (A.y * 19349663) ^ (A.z * 83492791));
+//}
+
 template<class T>
-inline uint __host__ __device__ Hash_Index(const T &A) {
-	return ((A.x * 73856093) ^ (A.y * 19349663) ^ (A.z * 83492791));
+inline uint __host__ __device__ Hash_Index(T A, int3 grid_size) {
+//		A.x=A.x&(32-1);
+//		A.y=A.y&(32-1);
+//		A.z=A.z&(32-1);
+//
+	return ((A.z * grid_size.y) * grid_size.x) + (A.y * grid_size.x) + A.x;
 }
 
 //Function to Count AABB Bin intersections
 inline void __host__ __device__ function_Count_AABB_BIN_Intersection(const uint &index, const real3 *aabb_data, const real3 &bin_size_vec, const uint &number_of_particles, uint *Bins_Intersected) {
 	int3 gmin = HashMin(aabb_data[index], bin_size_vec);
-	int3 gmax = HashMax(aabb_data[index + number_of_particles], bin_size_vec);
+	int3 gmax = HashMin(aabb_data[index + number_of_particles], bin_size_vec);
 	Bins_Intersected[index] = (gmax.x - gmin.x + 1) * (gmax.y - gmin.y + 1) * (gmax.z - gmin.z + 1);
 }
 //--------------------------------------------------------------------------
@@ -165,18 +174,19 @@ inline void __host__ __device__ function_Store_AABB_BIN_Intersection(
 		const real3 *aabb_data,
 		const uint *Bins_Intersected,
 		const real3 &bin_size_vec,
+		const int3 &grid_size,
 		const uint &number_of_particles,
 		uint *bin_number,
 		uint *body_number) {
 	uint count = 0, i, j, k;
 	int3 gmin = HashMin(aabb_data[index], bin_size_vec);
-	int3 gmax = HashMax(aabb_data[index + number_of_particles], bin_size_vec);
+	int3 gmax = HashMin(aabb_data[index + number_of_particles], bin_size_vec);
 	uint mInd = (index == 0) ? 0 : Bins_Intersected[index - 1];
 
 	for (i = gmin.x; i <= gmax.x; i++) {
 		for (j = gmin.y; j <= gmax.y; j++) {
 			for (k = gmin.z; k <= gmax.z; k++) {
-				bin_number[mInd + count] = Hash_Index(U3(i, j, k));
+				bin_number[mInd + count] = Hash_Index(U3(i, j, k), grid_size);
 				body_number[mInd + count] = index;
 				count++;
 			}
@@ -186,7 +196,7 @@ inline void __host__ __device__ function_Store_AABB_BIN_Intersection(
 //--------------------------------------------------------------------------
 __global__ void device_Store_AABB_BIN_Intersection(const real3 *aabb_data, const uint *Bins_Intersected, uint *bin_number, uint *body_number) {
 	INIT_CHECK_THREAD_BOUNDED(INDEX1D, numAABB_const);
-	function_Store_AABB_BIN_Intersection(index, aabb_data, Bins_Intersected, bin_size_vec_const, numAABB_const, bin_number, body_number);
+	function_Store_AABB_BIN_Intersection(index, aabb_data, Bins_Intersected, bin_size_vec_const, grid_size_const, numAABB_const, bin_number, body_number);
 }
 //--------------------------------------------------------------------------
 
@@ -194,7 +204,7 @@ void Broadphase::host_Store_AABB_BIN_Intersection(const real3 *aabb_data, const 
 #pragma omp parallel for schedule(guided)
 
 	for (int i = 0; i < numAABB; i++) {
-		function_Store_AABB_BIN_Intersection(i, aabb_data, Bins_Intersected, bin_size_vec, numAABB, bin_number, body_number);
+		function_Store_AABB_BIN_Intersection(i, aabb_data, Bins_Intersected, bin_size_vec, grid_size, numAABB, bin_number, body_number);
 	}
 }
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -221,12 +231,14 @@ inline void __host__ __device__ function_Count_AABB_AABB_Intersection(
 
 		for (int k = i + 1; k < end; k++) {
 			tempb = body_number[k];
-			Bmin = aabb_data[tempb];
-			Bmax = aabb_data[tempb + number_of_particles];
-			bool inContact = (Amin.x <= Bmax.x && Bmin.x <= Amax.x) && (Amin.y <= Bmax.y && Bmin.y <= Amax.y) && (Amin.z <= Bmax.z && Bmin.z <= Amax.z);
+			if (tempa != tempb) {
+				Bmin = aabb_data[tempb];
+				Bmax = aabb_data[tempb + number_of_particles];
+				bool inContact = (Amin.x <= Bmax.x && Bmin.x <= Amax.x) && (Amin.y <= Bmax.y && Bmin.y <= Amax.y) && (Amin.z <= Bmax.z && Bmin.z <= Amax.z);
 
-			if (inContact)
-				count++;
+				if (inContact)
+					count++;
+			}
 		}
 	}
 
@@ -277,22 +289,25 @@ inline void __host__ __device__ function_Store_AABB_AABB_Intersection(
 
 		for (int k = i + 1; k < end; k++) {
 			tempb = body_number[k];
-			Bmin = aabb_data[tempb];
-			Bmax = aabb_data[tempb + number_of_particles];
-			bool inContact = (Amin.x <= Bmax.x && Bmin.x <= Amax.x) && (Amin.y <= Bmax.y && Bmin.y <= Amax.y) && (Amin.z <= Bmax.z && Bmin.z <= Amax.z);
+			if (tempa != tempb) {
 
-			if (inContact == true) {
-				int a = tempa;
-				int b = tempb;
+				Bmin = aabb_data[tempb];
+				Bmax = aabb_data[tempb + number_of_particles];
+				bool inContact = (Amin.x <= Bmax.x && Bmin.x <= Amax.x) && (Amin.y <= Bmax.y && Bmin.y <= Amax.y) && (Amin.z <= Bmax.z && Bmin.z <= Amax.z);
 
-				if (b < a) {
-					int t = a;
-					a = b;
-					b = t;
+				if (inContact == true) {
+					int a = tempa;
+					int b = tempb;
+
+					if (b < a) {
+						int t = a;
+						a = b;
+						b = t;
+					}
+
+					potential_contacts[offset + count] = ((long long) a << 32 | (long long) b);     //the two indicies of the objects that make up the contact
+					count++;
 				}
-
-				potential_contacts[offset + count] = ((long long) a << 32 | (long long) b);     //the two indicies of the objects that make up the contact
-				count++;
 			}
 		}
 	}
@@ -363,7 +378,7 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 		max_bounding_point = result.second;
 		global_origin = fabs(min_bounding_point);		//CHANGED: removed abs
 		bin_size_vec = (fabs(max_bounding_point + fabs(min_bounding_point)));
-		bin_size_vec = bin_size_vec/bins_per_axis;//CHANGED: this was supposed to be reversed, CHANGED BACK this is just the inverse for convenience (saves us the divide later)
+		bin_size_vec = R3(grid_size.x,grid_size.y,grid_size.z)/bin_size_vec;//CHANGED: this was supposed to be reversed, CHANGED BACK this is just the inverse for convenience (saves us the divide later)
 		if(par_transform) {
 			thrust::transform(EXEC_POLICY,aabb_data.begin(), aabb_data.end(), thrust::constant_iterator<real3>(global_origin), aabb_data.begin(), thrust::plus<real3>());     //CHANGED: Should be a minus
 		} else {
@@ -380,6 +395,7 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 		// TODO: I think there is something wrong with the hash function...
 #ifdef SIM_ENABLE_GPU_MODE
 		COPY_TO_CONST_MEM(bin_size_vec);
+		COPY_TO_CONST_MEM(grid_size);
 		device_Count_AABB_BIN_Intersection __KERNEL__(BLOCKS(numAABB), THREADS)(CASTR3(aabb_data), CASTU1(Bins_Intersected));
 #else
 		host_Count_AABB_BIN_Intersection(aabb_data.data(), Bins_Intersected.data());
@@ -439,21 +455,21 @@ int Broadphase::detectPossibleCollisions(custom_vector<real3> &aabb_data, custom
 #endif
 ////      //QUESTION: I have no idea what is going on here
 		if(last_active_bin<=0) {number_of_contacts_possible = 0; return 0;}
-		if(par_max_element) {
-			val = bin_start_index[thrust::max_element(EXEC_POLICY,bin_start_index.begin(), bin_start_index.begin() + last_active_bin)- bin_start_index.begin()];
-		} else {
-			val = bin_start_index[thrust::max_element(bin_start_index.begin(), bin_start_index.begin() + last_active_bin)- bin_start_index.begin()];
-
-		}
-		if (val > max_body_per_bin) {
-			bins_per_axis = bins_per_axis * 1.1;
-		} else if (val < min_body_per_bin && val > 10) {
-			bins_per_axis = bins_per_axis * .9;
-		}
+//		if(par_max_element) {
+//			val = bin_start_index[thrust::max_element(EXEC_POLICY,bin_start_index.begin(), bin_start_index.begin() + last_active_bin)- bin_start_index.begin()];
+//		} else {
+//			val = bin_start_index[thrust::max_element(bin_start_index.begin(), bin_start_index.begin() + last_active_bin)- bin_start_index.begin()];
+//
+//		}
+//		if (val > max_body_per_bin) {
+//			bins_per_axis = bins_per_axis * 1.1;
+//		} else if (val < min_body_per_bin && val > 10) {
+//			bins_per_axis = bins_per_axis * .9;
+//		}
 
 		bin_start_index.resize(last_active_bin);
 #ifdef PRINT_DEBUG_GPU
-		cout <<val<<" "<<bins_per_axis.x<<" "<<bins_per_axis.y<<" "<<bins_per_axis.z<<endl;
+		cout <<val<<" "<<grid_size.x<<" "<<grid_size.y<<" "<<grid_size.z<<endl;
 		cout << "Last active bin: " << last_active_bin << endl;
 #endif
 

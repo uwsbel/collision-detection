@@ -27,7 +27,7 @@ int main(int argc, char** argv)
 	}
 
 	Broadphase broadphaseManager;
-	broadphaseManager.setBinsPerAxis(make_real3(1,1,1));
+	broadphaseManager.setBinsPerAxis(I3(1,1,1));
 	broadphaseManager.detectPossibleCollisions(aabb_data, potentialCollisions);
 
 	assert(potentialCollisions.size()==numObjectsFactorial);

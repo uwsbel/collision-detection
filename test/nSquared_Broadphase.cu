@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
 	custom_vector<long long> potentialCollisions;
 
 	Broadphase broadphaseManager;
-	broadphaseManager.setBinsPerAxis(make_real3(30,30,30));
+	broadphaseManager.setBinsPerAxis(I3(30,30,30));
 
 	cout << "Begin parallel broadphase" << endl;
 	double startTime = omp_get_wtime();

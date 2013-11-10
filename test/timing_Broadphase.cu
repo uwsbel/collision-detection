@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
 		custom_vector<long long> potentialCollisions;
 
 		Broadphase broadphaseManager;
-		broadphaseManager.setBinsPerAxis(make_real3(50, 50, 50));
+		broadphaseManager.setBinsPerAxis(I3(50, 50, 50));
 
 		if (argc == 12) {
 			broadphaseManager.setParallelConfiguration(
