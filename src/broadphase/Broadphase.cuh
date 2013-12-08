@@ -8,15 +8,15 @@
 
 #pragma once
 #include "collision_detection.h"
-#include "includes/gpu_math.h"
+//#include "includes/gpu_math.h"
 #include "AABBGenerator.cuh"
 
 class Broadphase {
 	public:
 		Broadphase();
 		int detectPossibleCollisions(custom_vector<real3> &aabb_data, custom_vector<long long> &potentialCollisions);
-		int setBinsPerAxis(int3 binsPerAxis);
-		int3 getBinsPerAxis();
+		int setBinsPerAxis(ivec3 binsPerAxis);
+		ivec3 getBinsPerAxis();
 		int setBodyPerBin(int max, int min);
 		int getMaxBodyPerBin();
 		int getMinBodyPerBin();
@@ -40,7 +40,7 @@ class Broadphase {
 				real3 max_bounding_point;
 				real3 global_origin;
 				real3 bin_size_vec;
-				int3 grid_size;
+				ivec3 grid_size;
 				uint numAABB;
 				uint last_active_bin, number_of_bin_intersections, number_of_contacts_possible;
 				uint val;
