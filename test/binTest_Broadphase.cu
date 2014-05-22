@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
 	for (int k = 0; k < numSpheresPerSide; k++) {
 		for (int j = 0; j < numSpheresPerSide; j++) {
 			for (int i = 0; i < numSpheresPerSide; i++) {
-				sphere.pos = R3(i * sphereSpacing, j * sphereSpacing, k * sphereSpacing);
+				sphere.pos = make_real3(i * sphereSpacing, j * sphereSpacing, k * sphereSpacing);
 				sphere.r = sphereRad;
 				sphere.index = index;
 
@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
 	custom_vector<long long> potentialCollisions;
 
 	Broadphase broadphaseManager;
-	broadphaseManager.setBinsPerAxis(I3(8,8,bpa));
+	broadphaseManager.setBinsPerAxis(I3(bpa,bpa,bpa));
 
 	cout << "Begin parallel broadphase" << endl;
 	double startTime = omp_get_wtime();

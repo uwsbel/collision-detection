@@ -16,13 +16,13 @@ __device__ __host__ real3 GetCenter(const shape_type &type, const real3 &A, cons
 	}
 }
 
-__device__ __host__ real3 TransformSupportVert(const shape_type &type, const real3 &A, const real3 &B, const real3 &C, const quat &R, const real3 &b) {
+__device__ __host__ real3 TransformSupportVert(const shape_type &type, const real3 &A, const real3 &B, const real3 &C, const real4 &R, const real3 &b) {
 	real3 localSupport;
 	real3 n = normalize(b);
 
 	//M33 orientation = AMat(R);
 	//M33 invorientation = AMatT(R);
-	real3 rotated_n = rotate(conjugate(R),n);
+	real3 rotated_n = quatRotateMatT(n, R);
 
 	switch (type) {
 		case SPHERE:
@@ -44,11 +44,11 @@ __device__ __host__ real3 TransformSupportVert(const shape_type &type, const rea
 			localSupport = GetSupportPoint_Cone(B, rotated_n);
 			break;
 		case TRIANGLEMESH:
-			localSupport = GetSupportPoint_Triangle(A, B, C, n);
+			return GetSupportPoint_Triangle(A, B, C, n);
 			break;
 	}
 
-	return rotate(R,localSupport) + A;     //globalSupport
+	return quatRotateMat(localSupport, R) + A;     //globalSupport
 }
 
 __device__ __host__ real dist_line(real3 &P, real3 &x0, real3 &b, real3 &witness) {
@@ -124,12 +124,12 @@ __device__ __host__ bool CollideAndFindPoint(
 		real3 A_X,
 		real3 A_Y,
 		real3 A_Z,
-		quat A_R,
+		real4 A_R,
 		shape_type typeB,
 		real3 B_X,
 		real3 B_Y,
 		real3 B_Z,
-		quat B_R,
+		real4 B_R,
 		real3 &returnNormal,
 		real3 &point,
 		real &depth) {
@@ -163,8 +163,8 @@ __device__ __host__ bool CollideAndFindPoint(
 		n = normalize(n);
 		returnNormal = n;
 		//point1 = v11;
-		//poivec2 = v12;
-		point = (v11 + v12) * real(.5);
+		//point2 = v12;
+		point = (v11 + v12) * .5;
 
 		depth = dot((v12 - v11), n);
 		return true;
@@ -281,7 +281,7 @@ __device__ __host__ bool CollideAndFindPoint(
 
 					real inv = 1.0f / sum;
 					point = (b0 * v01 + b1 * v11 + b2 * v21 + b3 * v31) + (b0 * v02 + b1 * v12 + b2 * v22 + b3 * v32);
-					point = point * inv * real(.5);
+					point = point * inv * .5;
 					returnNormal = normalize(n);
 				}
 
@@ -319,11 +319,11 @@ __host__ __device__ void function_MPR_Store(
 		const real3 *obj_data_A,
 		const real3 *obj_data_B,
 		const real3 *obj_data_C,
-		const quat *obj_data_R,
+		const real4 *obj_data_R,
 		const uint *obj_data_ID,
 		const bool * obj_active,
 		const real3 *body_pos,
-		const quat *body_rot,
+		const real4 *body_rot,
 		const real & collision_envelope,
 		long long *contact_pair,
 		uint *contact_active,
@@ -331,12 +331,12 @@ __host__ __device__ void function_MPR_Store(
 		real3 *ptA,
 		real3 *ptB,
 		real *contactDepth,
-		ivec2 *ids
+		int2 *ids
 
 		) {
 
 	long long p = contact_pair[index];
-	ivec2 pair = I2(int(p >> 32), int(p & 0xffffffff));
+	int2 pair = I2(int(p >> 32), int(p & 0xffffffff));
 	shape_type A_T = obj_data_T[pair.x], B_T = obj_data_T[pair.y];     //Get the type data for each object in the collision pair
 	uint ID_A = obj_data_ID[pair.x];
 	uint ID_B = obj_data_ID[pair.y];
@@ -349,31 +349,31 @@ __host__ __device__ void function_MPR_Store(
 	}
 
 	real3 posA = body_pos[ID_A], posB = body_pos[ID_B];     //Get the global object position
-	quat rotA = body_rot[ID_A], rotB = body_rot[ID_B];     //Get the global object rotation
+	real4 rotA = body_rot[ID_A], rotB = body_rot[ID_B];     //Get the global object rotation
 	real3 A_X = obj_data_A[pair.x], B_X = obj_data_A[pair.y];
 	real3 A_Y = obj_data_B[pair.x], B_Y = obj_data_B[pair.y];
 	real3 A_Z = obj_data_C[pair.x], B_Z = obj_data_C[pair.y];
-	quat A_R = (cross(rotA, obj_data_R[pair.x]));
-	quat B_R = (cross(rotB, obj_data_R[pair.y]));
+	real4 A_R = (mult(rotA, obj_data_R[pair.x]));
+	real4 B_R = (mult(rotB, obj_data_R[pair.y]));
 
 	real envelope = collision_envelope;
 
 	if (A_T == SPHERE || A_T == ELLIPSOID || A_T == BOX || A_T == CYLINDER) {
-		A_X = rotate(rotA,A_X) + posA;
+		A_X = quatRotate(A_X, rotA) + posA;
 	} else if (A_T == TRIANGLEMESH) {
 		envelope = 0;
-		A_X = rotate(A_R, A_X + posA );
-		A_Y = rotate(A_R, A_Y + posA );
-		A_Z = rotate(A_R, A_Z + posA );
+		A_X = quatRotate(A_X + posA, A_R);
+		A_Y = quatRotate(A_Y + posA, A_R);
+		A_Z = quatRotate(A_Z + posA, A_R);
 	}
 
 	if (B_T == SPHERE || B_T == ELLIPSOID || B_T == BOX || B_T == CYLINDER) {
-		B_X = rotate(rotB,B_X) + posB;
+		B_X = quatRotate(B_X, rotB) + posB;
 	} else if (B_T == TRIANGLEMESH) {
 		envelope = 0;
-		B_X = rotate(B_R,B_X + posB);
-		B_Y = rotate(B_R,B_Y + posB);
-		B_Z = rotate(B_R,B_Z + posB);
+		B_X = quatRotate(B_X + posB, B_R);
+		B_Y = quatRotate(B_Y + posB, B_R);
+		B_Z = quatRotate(B_Z + posB, B_R);
 	}
 
 	real3 N = R3(1, 0, 0), p1 = R3(0), p2 = R3(0), p0 = R3(0);
@@ -427,18 +427,18 @@ __global__ void device_MPR_Store(
 		const real3 *obj_data_A,
 		const real3 *obj_data_B,
 		const real3 *obj_data_C,
-		const quat *obj_data_R,
+		const real4 *obj_data_R,
 		const uint *obj_data_ID,
 		const bool * obj_active,
 		const real3 *body_pos,
-		const quat *body_rot,
+		const real4 *body_rot,
 		long long *contact_pair,
 		uint *contact_active,
 		real3 *norm,
 		real3 *ptA,
 		real3 *ptB,
 		real *contactDepth,
-		ivec2 *ids) {
+		int2 *ids) {
 	INIT_CHECK_THREAD_BOUNDED(INDEX1D, total_possible_contacts_const);
 	function_MPR_Store(
 			index,
@@ -466,18 +466,18 @@ void Narrowphase::host_MPR_Store(
 		const real3 *obj_data_A,
 		const real3 *obj_data_B,
 		const real3 *obj_data_C,
-		const quat *obj_data_R,
+		const real4 *obj_data_R,
 		const uint *obj_data_ID,
 		const bool * obj_active,
 		const real3 *body_pos,
-		const quat *body_rot,
+		const real4 *body_rot,
 		long long *contact_pair,
 		uint *contact_active,
 		real3 *norm,
 		real3 *ptA,
 		real3 *ptB,
 		real *contactDepth,
-		ivec2 *ids) {
+		int2 *ids) {
 #pragma omp parallel for
 
 	for (uint index = 0; index < total_possible_contacts; index++) {
@@ -512,17 +512,17 @@ void Narrowphase::DoNarrowphase(const custom_vector<shape_type> &obj_data_T,
 const custom_vector<real3> &obj_data_A,
 const custom_vector<real3> &obj_data_B,
 const custom_vector<real3> &obj_data_C,
-const custom_vector<quat> &obj_data_R,
+const custom_vector<real4> &obj_data_R,
 const custom_vector<uint> &obj_data_ID,
 const custom_vector<bool> & obj_active,
 const custom_vector<real3> &body_pos,
-const custom_vector<quat> &body_rot,
+const custom_vector<real4> &body_rot,
 custom_vector<long long> &potentialCollisions,
 custom_vector<real3> &norm_data,
 custom_vector<real3> &cpta_data,
 custom_vector<real3> &cptb_data,
 custom_vector<real> &dpth_data,
-custom_vector<ivec2> &bids_data,
+custom_vector<int2> &bids_data,
 uint & number_of_contacts
 ) {
 
@@ -546,11 +546,11 @@ uint & number_of_contacts
 				CASTR3(obj_data_A),
 				CASTR3(obj_data_B),
 				CASTR3(obj_data_C),
-				CASTQ(obj_data_R),
+				CASTR4(obj_data_R),
 				CASTU1(obj_data_ID),
 				CASTB1(obj_active),
 				CASTR3(body_pos),
-				CASTQ(body_rot),
+				CASTR4(body_rot),
 				CASTLL(potentialCollisions),
 				CASTU1(generic_counter),
 				CASTR3(norm_data),

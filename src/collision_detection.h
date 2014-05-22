@@ -20,9 +20,7 @@
 #include <sstream>
 #include <fstream>
 #include <omp.h>
-#include <glm/glm.hpp>
-#include <glm/gtc/quaternion.hpp>
-#include <glm/gtx/quaternion.hpp>
+
 // thrust and cuda includes
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
@@ -42,13 +40,11 @@
 #include <thrust/scan.h>
 #include <thrust/sequence.h>
 #include <thrust/count.h>
-//#include <vector_types.h>
-#include <thrust/execution_policy.h>
+#include <vector_types.h>
 #include <thrust/system/omp/execution_policy.h>
 #include <thrust/system/cuda/execution_policy.h>
 #include <thrust/system/cpp/execution_policy.h>
 using namespace std;
-using namespace glm;
 //====================================DEFINES=================================//
 // takes care of some GCC issues
 #undef _GLIBCXX_ATOMIC_BUILTINS
@@ -58,102 +54,45 @@ using namespace glm;
 #define EPS FLT_EPSILON
 #define kCollideEpsilon  1e-5f
 
-enum shape_type {
-	SPHERE, ELLIPSOID, BOX, CYLINDER, RECT, CONE, TRIANGLEMESH
-};
-#define PRINT_DEBUG_GPU
+enum shape_type { SPHERE, ELLIPSOID, BOX, CYLINDER, RECT, CONE, TRIANGLEMESH};
+//#define PRINT_DEBUG_GPU
 //===================================USE CUDA?=================================//
 //#define SIM_ENABLE_GPU_MODE
 #ifdef SIM_ENABLE_GPU_MODE
-//#define THRUST_DEVICE_SYSTEM THRUST_DEVICE_SYSTEM_CUDA
-#define custom_vector thrust::device_vector
-#define EXEC_POLICY thrust::device
+	//#define THRUST_DEVICE_SYSTEM THRUST_DEVICE_SYSTEM_CUDA
+	#define custom_vector thrust::device_vector
+	#define EXEC_POLICY thrust::cuda::par
 #else
-//#define THRUST_HOST_SYSTEM THRUST_HOST_SYSTEM_OMP
-#define custom_vector thrust::host_vector
-#define EXEC_POLICY thrust::omp::par
+	//#define THRUST_HOST_SYSTEM THRUST_HOST_SYSTEM_OMP
+	#define custom_vector thrust::host_vector
+	#define EXEC_POLICY thrust::omp::par
 #endif
-//====================================UNITTEST===============================//
-#define UNIT_TEST
-
 //===================================ECLIPSE=================================//
 #ifdef __CDT_PARSER__
-#define __host__
-#define __device__
-#define __global__
-#define __constant__
-#define __shared__
-#define __KERNEL__(...) ()
+	#define __host__
+	#define __device__
+	#define __global__
+	#define __constant__
+	#define __shared__
+	#define __KERNEL__(...) ()
 #else
-#define __KERNEL__(...)  <<< __VA_ARGS__ >>>
+	#define __KERNEL__(...)  <<< __VA_ARGS__ >>>
 #endif
 
-//===================================REAL=================================//
-typedef float real;
-typedef glm::vec2 real2;
-typedef glm::vec3 real3;
-typedef glm::vec4 real4;
-
-#define R3  real3
-#define R4  real4
-#define R2  real2
-#define I4  ivec4
-#define I3  ivec3
-#define I2  ivec2
-#define U3  uvec3
-#define ZERO_EPSILON 1e-8
-typedef unsigned int uint;
-
-#define ZERO_VECTOR R3(0)
-
-static __host__ __device__ bool IsZero(const real &a) {
-	return abs(a) < ZERO_EPSILON;
-}
-
-static __host__ __device__ bool IsZero(const real3 &a) {
-	return IsZero(a.x) && IsZero(a.y) && IsZero(a.z);
-}
-
-static __host__ __device__ bool isEqual(const real &_a, const real &_b) {
-	real ab;
-	ab = fabs(_a - _b);
-	if (fabs(ab) < ZERO_EPSILON)
-		return 1;
-	real a, b;
-	a = fabs(_a);
-	b = fabs(_b);
-	if (b > a) {
-		return ab < ZERO_EPSILON * b;
-	} else {
-		return ab < ZERO_EPSILON * a;
-	}
-}
-
-static __host__ __device__ bool isEqual(const real3 &a, const real3 &b) {
-	return isEqual(a.x, b.x) && isEqual(a.y, b.y) && isEqual(a.z, b.z);
-}
-
-template<class T>
-static __host__ __device__ inline void Swap(T &a, T &b) {
-	T tmp = a;
-	a = b;
-	b = tmp;
-}
 
 //===============================RAW POINTER CASTS============================//
 #define CASTC1(x) (char*)thrust::raw_pointer_cast(&x[0])
 #define CASTU1(x) (uint*)thrust::raw_pointer_cast(&x[0])
-#define CASTU2(x) (uvec2*)thrust::raw_pointer_cast(&x[0])
-#define CASTU3(x) (uvec3*)thrust::raw_pointer_cast(&x[0])
+#define CASTU2(x) (uint2*)thrust::raw_pointer_cast(&x[0])
+#define CASTU3(x) (uint3*)thrust::raw_pointer_cast(&x[0])
 #define CASTI1(x) (int*)thrust::raw_pointer_cast(&x[0])
-#define CASTI2(x) (ivec2*)thrust::raw_pointer_cast(&x[0])
-#define CASTI3(x) (ivec3*)thrust::raw_pointer_cast(&x[0])
-#define CASTI4(x) (ivec4*)thrust::raw_pointer_cast(&x[0])
+#define CASTI2(x) (int2*)thrust::raw_pointer_cast(&x[0])
+#define CASTI3(x) (int3*)thrust::raw_pointer_cast(&x[0])
+#define CASTI4(x) (int4*)thrust::raw_pointer_cast(&x[0])
 #define CASTR1(x) (real*)thrust::raw_pointer_cast(&x[0])
 #define CASTR2(x) (real2*)thrust::raw_pointer_cast(&x[0])
 #define CASTR3(x) (real3*)thrust::raw_pointer_cast(&x[0])
 #define CASTR4(x) (real4*)thrust::raw_pointer_cast(&x[0])
-#define CASTQ(x)  (quat*)thrust::raw_pointer_cast(&x[0])
 #define CASTD1(x) (double*)thrust::raw_pointer_cast(&x[0])
 #define CASTD2(x) (double2*)thrust::raw_pointer_cast(&x[0])
 #define CASTD3(x) (double3*)thrust::raw_pointer_cast(&x[0])
@@ -192,4 +131,5 @@ static __host__ __device__ inline void Swap(T &a, T &b) {
 #define INIT_CHECK_THREAD_BOUNDED(x,y)  uint index = x; if (index >= y) { return;}
 
 #endif
+
 

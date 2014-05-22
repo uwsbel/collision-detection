@@ -9,8 +9,8 @@ __constant__ uint numAABB_const;
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 static __device__ __host__ void ComputeAABBSphere(const real &radius, const real3 &position, real3 &minp, real3 &maxp) {
-	minp = position - real3(radius);
-	maxp = position + real3(radius);
+	minp = position - R3(radius);
+	maxp = position + R3(radius);
 }
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 static __device__ __host__ void ComputeAABBTriangle(const real3 &A, const real3 &B, const real3 &C, real3 &minp, real3 &maxp) {
@@ -22,24 +22,22 @@ static __device__ __host__ void ComputeAABBTriangle(const real3 &A, const real3 
 	maxp.z = max(A.z, max(B.z, C.z));
 }
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-static __host__ __device__ void ComputeAABBBox(const real3 &dim, const real3 &lpositon, const real3 &positon, const quat &lrotation, const quat &rotation, real3 &minp, real3 &maxp) {
+static __host__ __device__ void ComputeAABBBox(const real3 &dim, const real3 &lpositon, const real3 &positon, const real4 &lrotation, const real4 &rotation, real3 &minp, real3 &maxp) {
 
-	quat q1 = cross(rotation,lrotation);
-	//quat q1 = mult(rotation, lrotation);
+	real4 q1 = mult(rotation, lrotation);
+	M33 rotmat = AMat(q1);
+	rotmat = AbsMat(rotmat);
 
-	mat3 rotmat = mat3_cast(q1);
-	rotmat = abs(rotmat);
+	real3 temp = MatMult(rotmat, dim);
 
-	real3 temp = rotmat*dim;
-
-	real3 pos = rotate(rotation,lpositon) + positon;
+	real3 pos = quatRotate(lpositon, rotation) + positon;
 	minp = pos - temp;
 	maxp = pos + temp;
 
 //cout<<minp.x<<" "<<minp.y<<" "<<minp.z<<"  |  "<<maxp.x<<" "<<maxp.y<<" "<<maxp.z<<endl;
 //    real3 pos = quatRotate(lpositon, rotation) + positon; //new position
-//    quat q1 = mult(rotation, lrotation); //full rotation
-//    quat q = R4(q1.y, q1.z, q1.w, q1.x);
+//    real4 q1 = mult(rotation, lrotation); //full rotation
+//    real4 q = R4(q1.y, q1.z, q1.w, q1.x);
 //    real t[3] = { pos.x, pos.y, pos.z };
 //    real mina[3] = { -dim.x, -dim.y, -dim.z };
 //    real maxa[3] = { dim.x, dim.y, dim.z };
@@ -83,29 +81,29 @@ static __host__ __device__ void ComputeAABBBox(const real3 &dim, const real3 &lp
 //    maxp = R3(maxb[0], maxb[1], maxb[2]);
 }
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-__device__ __host__ void function_ComputeAABB(const uint &index, const shape_type *obj_data_T, const real3 *obj_data_A, const real3 *obj_data_B, const real3 *obj_data_C, const quat *obj_data_R,
-		const uint *obj_data_ID, const real3 *body_pos, const quat *body_rot, const uint &numAABB, real3 *aabb_data) {
+__device__ __host__ void function_ComputeAABB(const uint &index, const shape_type *obj_data_T, const real3 *obj_data_A, const real3 *obj_data_B, const real3 *obj_data_C, const real4 *obj_data_R,
+		const uint *obj_data_ID, const real3 *body_pos, const real4 *body_rot, const uint &numAABB, real3 *aabb_data) {
 	shape_type type = obj_data_T[index];
 	uint id = obj_data_ID[index];
 	real3 A = obj_data_A[index];
 	real3 B = obj_data_B[index];
 	real3 C = obj_data_C[index];
 	real3 position = body_pos[id];
-	quat rotation = (cross(body_rot[id], obj_data_R[index]));
+	real4 rotation = (mult(body_rot[id], obj_data_R[index]));
 	real3 temp_min;
 	real3 temp_max;
 
 	if (type == 0) {
-		A = rotate(body_rot[id],A);
+		A = quatRotate(A, body_rot[id]);
 		ComputeAABBSphere(B.x, A + position, temp_min, temp_max);
 		//if(id==6){
 		//cout<<temp_min.x<<" "<<temp_min.y<<" "<<temp_min.z<<"  |  "<<temp_max.x<<" "<<temp_max.y<<" "<<temp_max.z<<endl;
 
 		//}
 	} else if (type == 5) {
-		A = rotate(rotation,A + position);
-		B = rotate(rotation,B + position);
-		C = rotate(rotation,C + position);
+		A = quatRotate(A + position, rotation);
+		B = quatRotate(B + position, rotation);
+		C = quatRotate(C + position, rotation);
 		ComputeAABBTriangle(A, B, C, temp_min, temp_max);
 	} else if (type == 1 || type == 2 || type == 3) {
 		ComputeAABBBox(B, A, position, obj_data_R[index], body_rot[id], temp_min, temp_max);
@@ -116,14 +114,14 @@ __device__ __host__ void function_ComputeAABB(const uint &index, const shape_typ
 	aabb_data[index] = temp_min;
 	aabb_data[index + numAABB] = temp_max;
 }
-__global__ void device_ComputeAABB(const shape_type *obj_data_T, const real3 *obj_data_A, const real3 *obj_data_B, const real3 *obj_data_C, const quat *obj_data_R, const uint *obj_data_ID,
-		const real3 *body_pos, const quat *body_rot, real3 *aabb_data) {
+__global__ void device_ComputeAABB(const shape_type *obj_data_T, const real3 *obj_data_A, const real3 *obj_data_B, const real3 *obj_data_C, const real4 *obj_data_R, const uint *obj_data_ID,
+		const real3 *body_pos, const real4 *body_rot, real3 *aabb_data) {
 	INIT_CHECK_THREAD_BOUNDED(INDEX1D, numAABB_const);
 	function_ComputeAABB(index, obj_data_T, obj_data_A, obj_data_B, obj_data_C, obj_data_R, obj_data_ID, body_pos, body_rot, numAABB_const, aabb_data);
 }
 
-void AABBGenerator::host_ComputeAABB(const shape_type *obj_data_T, const real3 *obj_data_A, const real3 *obj_data_B, const real3 *obj_data_C, const quat *obj_data_R, const uint *obj_data_ID,
-		const real3 *body_pos, const quat *body_rot, real3 *aabb_data) {
+void AABBGenerator::host_ComputeAABB(const shape_type *obj_data_T, const real3 *obj_data_A, const real3 *obj_data_B, const real3 *obj_data_C, const real4 *obj_data_R, const uint *obj_data_ID,
+		const real3 *body_pos, const real4 *body_rot, real3 *aabb_data) {
 #pragma omp parallel for
 
 	for (int i = 0; i < numAABB; i++) {
@@ -138,10 +136,10 @@ void AABBGenerator::GenerateAABB(const custom_vector<shape_type> &obj_data_T,
 const custom_vector<real3> &obj_data_A,
 const custom_vector<real3> &obj_data_B,
 const custom_vector<real3> &obj_data_C,
-const custom_vector<quat> &obj_data_R,
+const custom_vector<real4> &obj_data_R,
 const custom_vector<uint> &obj_data_ID,
 const custom_vector<real3> &body_pos,
-const custom_vector<quat> &body_rot,
+const custom_vector<real4> &body_rot,
 custom_vector<real3> &aabb_data) {
 
 #ifdef PRINT_DEBUG_GPU
@@ -157,10 +155,10 @@ custom_vector<real3> &aabb_data) {
 				CASTR3(obj_data_A.data()),
 				CASTR3(obj_data_B.data()),
 				CASTR3(obj_data_C.data()),
-				CASTQ(obj_data_R.data()),
+				CASTR4(obj_data_R.data()),
 				CASTU1(obj_data_ID.data()),
 				CASTR3(body_pos.data()),
-				CASTQ(body_rot.data()),
+				CASTR4(body_rot.data()),
 				CASTR3(aabb_data.data()));
 #else
 		host_ComputeAABB(

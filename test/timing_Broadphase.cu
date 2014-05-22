@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
 
 		Sphere sphere;
 		for (int i = 0; i < numSpheres; i++) {
-			sphere.pos = R3(getRandomNumber(xMin, xMax), getRandomNumber(yMin, yMax), getRandomNumber(zMin, zMax));
+			sphere.pos = make_real3(getRandomNumber(xMin, xMax), getRandomNumber(yMin, yMax), getRandomNumber(zMin, zMax));
 			sphere.r = getRandomNumber(rMin, rMax);
 			sphere.index = i;
 

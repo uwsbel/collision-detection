@@ -16,13 +16,13 @@ int main(int argc, char** argv)
 	real3 point;
 	for(int i=0;i<numObjects;i++)
 	{
-		point = R3(0,0,0);
+		point = make_real3(0,0,0);
 		aabb_data.push_back(point);
 		numObjectsFactorial+=i;
 	}
 	for(int i=0;i<numObjects;i++)
 	{
-		point = R3(1,1,1);
+		point = make_real3(1,1,1);
 		aabb_data.push_back(point);
 	}
 

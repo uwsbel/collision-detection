@@ -27,7 +27,7 @@ bool isColliding(Sphere sA, Sphere sB) {
 
 int main(int argc, char** argv) {
 	// Step 1: Generate random spheres
-	uint numSpheres = 30000;
+	uint numSpheres = 300000;
 	double xMin = -30;
 	double xMax = 30;
 	double yMin = -30;
@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
 
 	Sphere sphere;
 	for (int i = 0; i < numSpheres; i++) {
-		sphere.pos = R3(getRandomNumber(xMin, xMax), getRandomNumber(yMin, yMax), getRandomNumber(zMin, zMax));
+		sphere.pos = make_real3(getRandomNumber(xMin, xMax), getRandomNumber(yMin, yMax), getRandomNumber(zMin, zMax));
 		sphere.r = getRandomNumber(rMin, rMax);
 		sphere.index = i;
 
@@ -87,9 +87,9 @@ int main(int argc, char** argv) {
 	cout << "End parallel broadphase\n" << endl;
 
 	thrust::host_vector<long long> potentialCollisions_h = potentialCollisions;
-	thrust::host_vector<ivec2> gpuCollisions;
+	thrust::host_vector<int2> gpuCollisions;
 	for (int i = 0; i < broadphaseManager.getNumPossibleContacts(); i++) {
-		ivec2 collisionPair;
+		int2 collisionPair;
 		collisionPair.x = int(potentialCollisions_h[i] >> 32);
 		collisionPair.y = int(potentialCollisions_h[i] & 0xffffffff);
 		gpuCollisions.push_back(collisionPair);
@@ -99,11 +99,11 @@ int main(int argc, char** argv) {
 	// Step 4: Perform collision detection using N-Squared approach (Detects ACTUAL collisions)
 	cout << "Begin n-squared validation" << endl;
 	double startTimeN2 = omp_get_wtime();
-	thrust::host_vector<ivec2> nSquaredCollisions;
+	thrust::host_vector<int2> nSquaredCollisions;
 	for (int i = 0; i < spheres.size(); i++) {
 		for (int j = i + 1; j < spheres.size(); j++) {
 			if (isColliding(spheres[i], spheres[j])) {
-				nSquaredCollisions.push_back(I2(i, j));
+				nSquaredCollisions.push_back(make_int2(i, j));
 			}
 		}
 	}
@@ -114,9 +114,9 @@ int main(int argc, char** argv) {
 
 	// Step 5: Check to see if all the collisions are detected
 	bool testFail = false;
-	thrust::host_vector<ivec2> collisionListA = gpuCollisions;     // what you want to check
-	thrust::host_vector<ivec2> collisionListB = nSquaredCollisions;     // what you think is correct
-	thrust::host_vector<ivec2> badCollisions;
+	thrust::host_vector<int2> collisionListA = gpuCollisions;     // what you want to check
+	thrust::host_vector<int2> collisionListB = nSquaredCollisions;     // what you think is correct
+	thrust::host_vector<int2> badCollisions;
 	for (int i = 0; i < collisionListB.size(); i++) {
 		bool collisionFound = false;
 		for (int j = 0; j < collisionListA.size() && collisionFound == false; j++) {

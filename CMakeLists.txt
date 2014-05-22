@@ -20,9 +20,6 @@ include(cmake/ParallelUtils.cmake)
 
 enable_cuda_support()
 enable_openmp_support()
-
-FIND_PACKAGE(GLM)
-
 IF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 ELSEIF(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -35,8 +32,6 @@ ${CMAKE_SOURCE_DIR}/src
 ${CMAKE_SOURCE_DIR}/src/aabb
 ${CMAKE_SOURCE_DIR}/src/broadphase
 ${CMAKE_SOURCE_DIR}/src/narrowphase)
-
-INCLUDE_DIRECTORIES(${GLM_INCLUDE_DIR})
 
 cuda_add_library(collision_detection SHARED 
 	src/broadphase/Broadphase.cu 

@@ -6,7 +6,7 @@
 #ifndef SUPPORTFUNCTIONS_H
 #define SUPPORTFUNCTIONS_H
 
-//#include "includes/gpu_math.h"
+#include "includes/gpu_math.h"
 
 __device__ __host__ inline real3 GetSupportPoint_Sphere(const real3 &B, const real3 &n) {
 	return B.x * n;

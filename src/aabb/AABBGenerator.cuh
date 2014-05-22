@@ -9,7 +9,7 @@
 
 #pragma once
 #include "collision_detection.h"
-//#include "includes/gpu_math.h"
+#include "includes/gpu_math.h"
 class AABBGenerator {
 
         typedef thrust::pair<real3, real3> bbox;
@@ -23,10 +23,10 @@ class AABBGenerator {
                     const custom_vector<real3> &obj_data_A, //Data A
                     const custom_vector<real3> &obj_data_B, //Data B
                     const custom_vector<real3> &obj_data_C, //Data C
-                    const custom_vector<quat> &obj_data_R, //Data D
+                    const custom_vector<real4> &obj_data_R, //Data D
                     const custom_vector<uint> &obj_data_ID, //Body ID
                     const custom_vector<real3> &body_pos,   //Position global
-                    const custom_vector<quat> &body_rot,   //Rotation global
+                    const custom_vector<real4> &body_rot,   //Rotation global
                     custom_vector<real3> &aabb_data);
 
             private:
@@ -36,10 +36,10 @@ class AABBGenerator {
                     const real3 *obj_data_A,
                     const real3 *obj_data_B,
                     const real3 *obj_data_C,
-                    const quat *obj_data_R,
+                    const real4 *obj_data_R,
                     const uint  *obj_data_ID,
                     const real3 *body_pos,
-                    const quat *body_rot,
+                    const real4 *body_rot,
                     real3 *aabb_data
                 );
 
